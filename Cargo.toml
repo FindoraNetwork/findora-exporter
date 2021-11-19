@@ -9,7 +9,7 @@ simple_logger = "1.3"
 log = "0.4"
 anyhow = "1.0"
 clap = "2.33"
-prometheus = { version = "0.13", default-feature = false }
+prometheus = "0.13"
 lazy_static = "1.4"
 ctrlc = { version = "3.2", features = ["termination"] }
 tiny_http = "0.9"
