@@ -1,15 +1,9 @@
 use lazy_static::lazy_static;
-use log::info;
 use prometheus::register_histogram_vec;
 use prometheus::HistogramVec;
 
-use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    thread,
-};
+use std::sync::{Arc, RwLock};
+use std::thread;
 
 mod server;
 mod websocket;
@@ -23,26 +17,39 @@ lazy_static! {
     .expect("validator metrics create failed");
 }
 
-const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:9090";
+const DEFAULT_SERVER_ADDR: &str = "0.0.0.0:9090";
 const DEFAULT_WEBSOCKET_ADDR: &str = "ws://127.0.0.1:26657/websocket";
 
 fn main() {
     simple_logger::init().expect("simple logger init failed");
 
+    let server = Arc::new(server::Server::new(DEFAULT_SERVER_ADDR));
+    let socket = Arc::new(RwLock::new(websocket::Socket::new(DEFAULT_WEBSOCKET_ADDR)));
+
     let mut threads = Vec::with_capacity(2);
-    let done = Arc::new(AtomicBool::new(false));
-    let server = server::Server::new(DEFAULT_SERVER_ADDR, done.clone());
-    let mut socket = websocket::Socket::new(DEFAULT_WEBSOCKET_ADDR, done.clone());
+
+    let server_spawn = Arc::clone(&server);
+    let socket_spawn = Arc::clone(&socket);
+    threads.push(
+        thread::Builder::new()
+            .name("server_thread".into())
+            .spawn(move || server_spawn.run())
+            .unwrap(),
+    );
+
+    threads.push(
+        thread::Builder::new()
+            .name("websocket_thread".into())
+            .spawn(move || socket_spawn.write().unwrap().run())
+            .unwrap(),
+    );
 
     ctrlc::set_handler(move || {
-        done.store(true, Ordering::SeqCst);
+        server.close();
+        socket.write().unwrap().close();
     })
     .expect("setting Ctrl-C handler failed");
 
-    threads.push(thread::spawn(move || server.run()));
-    threads.push(thread::spawn(move || socket.run()));
-
-    info!("server listening at: {}", DEFAULT_SERVER_ADDR);
     for t in threads {
         // no matter what we need to wait all of the thread stopped
         let _ = t.join();
