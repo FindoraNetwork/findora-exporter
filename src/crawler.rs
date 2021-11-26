@@ -38,10 +38,10 @@ impl Crawler {
 
         self.jobs.push(Some(thread::spawn(move || {
             while !done.load(Ordering::SeqCst) {
-                thread::sleep(Duration::from_millis(500));
+                thread::sleep(Duration::from_millis(3000));
                 match get_consensus_power(&addr) {
                     Ok(v) => {
-                        println!("#############:{}", v);
+                        crate::CONSENSUS_POWER.set(v);
                     }
                     Err(e) => {
                         error!("get_consensus_power failed: {:?}", e)

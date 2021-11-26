@@ -1,12 +1,13 @@
 use lazy_static::lazy_static;
-use prometheus::register_histogram_vec;
-use prometheus::HistogramVec;
+use prometheus::{opts, register_gauge, register_histogram_vec};
+use prometheus::{Gauge, HistogramVec};
 
 use std::sync::{Arc, RwLock};
 use std::thread;
 
 mod crawler;
 mod server;
+#[cfg(feature = "websocket")]
 mod websocket;
 
 lazy_static! {
@@ -16,10 +17,16 @@ lazy_static! {
         &["env"],
     )
     .expect("validator metrics create failed");
+    static ref CONSENSUS_POWER: Gauge = register_gauge!(opts!(
+        "consensus_power",
+        "current consensus network voting power"
+    ))
+    .expect("consensus power gauge create failed");
 }
 
 const DEFAULT_CRAWLER_ADDR: &str = "https://prod-testnet.prod.findora.org:26657";
 const DEFAULT_SERVER_ADDR: &str = "0.0.0.0:9090";
+#[cfg(feature = "websocket")]
 const DEFAULT_WEBSOCKET_ADDR: &str = "ws://127.0.0.1:26657/websocket";
 
 fn main() {
