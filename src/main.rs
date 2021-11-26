@@ -24,8 +24,8 @@ lazy_static! {
     .expect("consensus power gauge create failed");
 }
 
-const DEFAULT_CRAWLER_ADDR: &str = "https://prod-testnet.prod.findora.org:26657";
-const DEFAULT_SERVER_ADDR: &str = "0.0.0.0:9090";
+const DEFAULT_CRAWLER_ADDR: &str = "http://127.0.0.1:26657";
+const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:9090";
 #[cfg(feature = "websocket")]
 const DEFAULT_WEBSOCKET_ADDR: &str = "ws://127.0.0.1:26657/websocket";
 
