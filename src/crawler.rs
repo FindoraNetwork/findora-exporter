@@ -11,14 +11,16 @@ use serde_json::Value;
 
 pub(crate) struct Crawler {
     addr: String,
+    freq: Duration,
     jobs: Vec<Option<thread::JoinHandle<()>>>,
     done: Arc<AtomicBool>,
 }
 
 impl Crawler {
-    pub(crate) fn new(addr: &str) -> Self {
+    pub(crate) fn new(addr: &str, freq_ms: u64) -> Self {
         Crawler {
             addr: addr.to_string(),
+            freq: Duration::from_millis(freq_ms),
             jobs: Vec::with_capacity(3),
             done: Arc::new(AtomicBool::new(false)),
         }
@@ -35,10 +37,11 @@ impl Crawler {
     pub(crate) fn run(&mut self) {
         let addr = self.addr.clone();
         let done = self.done.clone();
+        let freq = self.freq;
 
         self.jobs.push(Some(thread::spawn(move || {
             while !done.load(Ordering::SeqCst) {
-                thread::sleep(Duration::from_millis(3000));
+                thread::sleep(freq);
                 match get_consensus_power(&addr) {
                     Ok(v) => {
                         crate::CONSENSUS_POWER.set(v);

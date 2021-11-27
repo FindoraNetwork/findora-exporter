@@ -5,10 +5,9 @@ use prometheus::{Gauge, HistogramVec};
 use std::sync::{Arc, RwLock};
 use std::thread;
 
+mod config;
 mod crawler;
 mod server;
-#[cfg(feature = "websocket")]
-mod websocket;
 
 lazy_static! {
     static ref VALIDATOR_ADDRESSES_HISTOGRAM: HistogramVec = register_histogram_vec!(
@@ -24,22 +23,19 @@ lazy_static! {
     .expect("consensus power gauge create failed");
 }
 
-const DEFAULT_CRAWLER_ADDR: &str = "http://127.0.0.1:26657";
-const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:9090";
-#[cfg(feature = "websocket")]
-const DEFAULT_WEBSOCKET_ADDR: &str = "ws://127.0.0.1:26657/websocket";
-
 fn main() {
     simple_logger::init().expect("simple logger init failed");
+    let cfg = config::read_config().expect("read config failed");
 
-    let server = Arc::new(server::Server::new(DEFAULT_SERVER_ADDR));
-    // let socket = Arc::new(RwLock::new(websocket::Socket::new(DEFAULT_WEBSOCKET_ADDR)));
-    let crawler = Arc::new(RwLock::new(crawler::Crawler::new(DEFAULT_CRAWLER_ADDR)));
+    let server = Arc::new(server::Server::new(&cfg.server.listen_addr));
+    let crawler = Arc::new(RwLock::new(crawler::Crawler::new(
+        &cfg.crawler.targets[0].host_addr,
+        cfg.crawler.targets[0].frequency_ms,
+    )));
 
     let mut threads = Vec::with_capacity(2);
 
     let server_spawn = Arc::clone(&server);
-    // let socket_spawn = Arc::clone(&socket);
     let crawler_spawn = Arc::clone(&crawler);
     threads.push(
         thread::Builder::new()
@@ -55,17 +51,9 @@ fn main() {
             .unwrap(),
     );
 
-    // threads.push(
-    //     thread::Builder::new()
-    //         .name("websocket_thread".into())
-    //         .spawn(move || socket_spawn.write().unwrap().run())
-    //         .unwrap(),
-    // );
-
     ctrlc::set_handler(move || {
         server.close();
         crawler.write().unwrap().close();
-        // socket.write().unwrap().close();
     })
     .expect("setting Ctrl-C handler failed");
 
