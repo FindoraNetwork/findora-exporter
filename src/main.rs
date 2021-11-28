@@ -28,15 +28,19 @@ fn main() {
     let cfg = config::read_config().expect("read config failed");
 
     let server = Arc::new(server::Server::new(&cfg.server.listen_addr));
-    let crawler = Arc::new(RwLock::new(crawler::Crawler::new(
-        &cfg.crawler.targets[0].host_addr,
-        cfg.crawler.targets[0].frequency_ms,
-    )));
+    let mut crawlers = vec![];
+
+    for target in cfg.crawler.targets {
+        crawlers.push(Arc::new(RwLock::new(crawler::Crawler::new(
+            &target.host_addr,
+            target.frequency_ms,
+        ))));
+    }
 
     let mut threads = Vec::with_capacity(2);
 
     let server_spawn = Arc::clone(&server);
-    let crawler_spawn = Arc::clone(&crawler);
+
     threads.push(
         thread::Builder::new()
             .name("server_thread".into())
@@ -44,16 +48,21 @@ fn main() {
             .unwrap(),
     );
 
-    threads.push(
-        thread::Builder::new()
-            .name("crawler_thread".into())
-            .spawn(move || crawler_spawn.write().unwrap().run())
-            .unwrap(),
-    );
+    for crawler in &crawlers {
+        let crawler_spawn = Arc::clone(crawler);
+        threads.push(
+            thread::Builder::new()
+                .name("crawler_thread".into())
+                .spawn(move || crawler_spawn.write().unwrap().run())
+                .unwrap(),
+        );
+    }
 
     ctrlc::set_handler(move || {
         server.close();
-        crawler.write().unwrap().close();
+        for crawler in &crawlers {
+            crawler.write().unwrap().close();
+        }
     })
     .expect("setting Ctrl-C handler failed");
 
