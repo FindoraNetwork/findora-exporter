@@ -2,9 +2,6 @@ use lazy_static::lazy_static;
 use prometheus::{opts, register_gauge, register_histogram_vec};
 use prometheus::{Gauge, HistogramVec};
 
-use std::sync::{Arc, RwLock};
-use std::thread;
-
 mod config;
 mod crawler;
 mod server;
@@ -28,34 +25,16 @@ fn main() {
     let cfg = config::read_config().expect("read config failed");
 
     let server = server::Server::new(&cfg.server);
-    let mut crawlers = vec![];
+    let crawler = crawler::Crawler::new(&cfg.crawler);
 
-    for target in cfg.crawler.targets {
-        crawlers.push(Arc::new(RwLock::new(crawler::Crawler::new(
-            &target.host_addr,
-            target.frequency_ms,
-        ))));
-    }
-
-    let mut threads = Vec::with_capacity(2);
-
-    threads.push(server.run().expect("server thread run failed"));
-
-    for crawler in &crawlers {
-        let crawler_spawn = Arc::clone(crawler);
-        threads.push(
-            thread::Builder::new()
-                .name("crawler_thread".into())
-                .spawn(move || crawler_spawn.write().unwrap().run())
-                .unwrap(),
-        );
-    }
+    let threads = vec![
+        server.run().expect("server thread run failed"),
+        crawler.run().expect("crawler thread run failed"),
+    ];
 
     ctrlc::set_handler(move || {
         server.close();
-        for crawler in &crawlers {
-            crawler.write().unwrap().close();
-        }
+        crawler.close();
     })
     .expect("setting Ctrl-C handler failed");
 

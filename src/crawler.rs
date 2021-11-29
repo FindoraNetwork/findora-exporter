@@ -1,32 +1,67 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, RwLock,
+    },
+    time::Duration,
+    {thread, thread::JoinHandle},
 };
-use std::thread;
-use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
 use log::error;
 use serde_json::Value;
 
 pub(crate) struct Crawler {
+    workers: Vec<Arc<RwLock<Worker>>>,
+}
+
+impl Crawler {
+    pub(crate) fn new(cfg: &crate::config::Crawler) -> Self {
+        let mut workers = vec![];
+        for target in &cfg.targets {
+            workers.push(Arc::new(RwLock::new(Worker::new(target))));
+        }
+        Crawler { workers }
+    }
+
+    pub(crate) fn close(&self) {
+        for worker in &self.workers {
+            worker.write().unwrap().close();
+        }
+    }
+
+    pub(crate) fn run(&self) -> Result<JoinHandle<()>> {
+        let workers = self.workers.clone();
+        thread::Builder::new()
+            .name("crawler_thread".into())
+            .spawn(move || {
+                for worker in &workers {
+                    worker.write().unwrap().run();
+                }
+            })
+            .context("crawler thread run failed")
+    }
+}
+
+struct Worker {
     addr: String,
     freq: Duration,
     jobs: Vec<Option<thread::JoinHandle<()>>>,
     done: Arc<AtomicBool>,
 }
 
-impl Crawler {
-    pub(crate) fn new(addr: &str, freq_ms: u64) -> Self {
-        Crawler {
-            addr: addr.to_string(),
-            freq: Duration::from_millis(freq_ms),
+impl Worker {
+    fn new(cfg: &crate::config::CrawlingTarget) -> Self {
+        Worker {
+            addr: cfg.host_addr.clone(),
+            freq: Duration::from_millis(cfg.frequency_ms),
             jobs: Vec::with_capacity(3),
             done: Arc::new(AtomicBool::new(false)),
         }
     }
 
-    pub(crate) fn close(&mut self) {
+    fn close(&mut self) {
+        self.done.store(true, Ordering::SeqCst);
         for job in &mut self.jobs {
             if let Some(t) = job.take() {
                 let _ = t.join();
@@ -34,7 +69,7 @@ impl Crawler {
         }
     }
 
-    pub(crate) fn run(&mut self) {
+    fn run(&mut self) {
         let addr = self.addr.clone();
         let done = self.done.clone();
         let freq = self.freq;
