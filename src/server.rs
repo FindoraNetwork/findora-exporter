@@ -4,12 +4,14 @@ use prometheus::TextEncoder;
 use std::{sync::Arc, thread, thread::JoinHandle};
 
 pub(crate) struct Server {
+    metrics: Arc<crate::metrics::Metrics>,
     server: Arc<tiny_http::Server>,
 }
 
 impl Server {
-    pub(crate) fn new(cfg: &crate::config::Server) -> Self {
+    pub(crate) fn new(cfg: &crate::config::Server, metrics: Arc<crate::metrics::Metrics>) -> Self {
         Server {
+            metrics,
             server: Arc::new(
                 tiny_http::Server::http(&cfg.listen_addr).expect("server binding failed"),
             ),
@@ -22,6 +24,8 @@ impl Server {
 
     pub(crate) fn run(&self) -> Result<JoinHandle<()>> {
         let server = self.server.clone();
+        let metrics = self.metrics.clone();
+
         thread::Builder::new()
             .name("server_thread".into())
             .spawn(move || {
@@ -39,7 +43,7 @@ impl Server {
                     }
 
                     let encoder = TextEncoder::new();
-                    let response = match encoder.encode_to_string(&prometheus::gather()) {
+                    let response = match encoder.encode_to_string(&metrics.gather()) {
                         Ok(v) => tiny_http::Response::from_string(v).boxed(),
                         Err(e) => {
                             error!("encode to string failed: {}", e);

@@ -16,10 +16,15 @@ pub(crate) struct Crawler {
 }
 
 impl Crawler {
-    pub(crate) fn new(cfg: &crate::config::Crawler) -> Self {
+    pub(crate) fn new(cfg: &crate::config::Crawler, metrics: Arc<crate::metrics::Metrics>) -> Self {
         let mut workers = vec![];
-        for target in &cfg.targets {
-            workers.push(Arc::new(RwLock::new(Worker::new(target))));
+        for i in 0..cfg.targets.len() {
+            workers.push(Arc::new(RwLock::new(Worker::new(
+                &cfg.targets[i],
+                metrics
+                    .get_consensus_power(i)
+                    .expect("workers and metrics index should be equal"),
+            ))));
         }
         Crawler { workers }
     }
@@ -48,15 +53,17 @@ struct Worker {
     freq: Duration,
     jobs: Vec<Option<thread::JoinHandle<()>>>,
     done: Arc<AtomicBool>,
+    metric: Arc<crate::metrics::Metric>,
 }
 
 impl Worker {
-    fn new(cfg: &crate::config::CrawlingTarget) -> Self {
+    fn new(cfg: &crate::config::Target, metric: Arc<crate::metrics::Metric>) -> Self {
         Worker {
             addr: cfg.host_addr.clone(),
             freq: Duration::from_millis(cfg.frequency_ms),
             jobs: Vec::with_capacity(3),
             done: Arc::new(AtomicBool::new(false)),
+            metric,
         }
     }
 
@@ -73,13 +80,14 @@ impl Worker {
         let addr = self.addr.clone();
         let done = self.done.clone();
         let freq = self.freq;
+        let metric = self.metric.clone();
 
         self.jobs.push(Some(thread::spawn(move || {
             while !done.load(Ordering::SeqCst) {
                 thread::sleep(freq);
                 match get_consensus_power(&addr) {
                     Ok(v) => {
-                        crate::CONSENSUS_POWER.set(v);
+                        metric.set_consensus_power(v);
                     }
                     Err(e) => {
                         error!("get_consensus_power failed: {:?}", e)
