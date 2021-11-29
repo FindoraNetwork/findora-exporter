@@ -27,7 +27,7 @@ fn main() {
     simple_logger::init().expect("simple logger init failed");
     let cfg = config::read_config().expect("read config failed");
 
-    let server = Arc::new(server::Server::new(&cfg.server.listen_addr));
+    let server = server::Server::new(&cfg.server);
     let mut crawlers = vec![];
 
     for target in cfg.crawler.targets {
@@ -39,14 +39,7 @@ fn main() {
 
     let mut threads = Vec::with_capacity(2);
 
-    let server_spawn = Arc::clone(&server);
-
-    threads.push(
-        thread::Builder::new()
-            .name("server_thread".into())
-            .spawn(move || server_spawn.run())
-            .unwrap(),
-    );
+    threads.push(server.run().expect("server thread run failed"));
 
     for crawler in &crawlers {
         let crawler_spawn = Arc::clone(crawler);
