@@ -8,7 +8,7 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use chrono::{NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use log::error;
 use serde_json::Value;
 
@@ -84,23 +84,16 @@ impl Worker {
         let metric = self.metric.clone();
 
         self.jobs.push(Some(thread::spawn(move || {
+            let tasks = vec![
+                Task::new("get_consensus_power", get_consensus_power),
+                Task::new("get_network_functional", get_network_functional),
+            ];
+
             while !done.load(Ordering::SeqCst) {
                 thread::sleep(freq);
-                match get_consensus_power(&addr) {
-                    Ok(v) => {
-                        metric.set_consensus_power(v);
-                    }
-                    Err(e) => {
-                        error!("get_consensus_power failed: {:?}", e)
-                    }
-                }
-
-                match get_network_functional(&addr) {
-                    Ok(v) => {
-                        metric.set_network_functional(v);
-                    }
-                    Err(e) => {
-                        error!("get_network_functional failed: {:?}", e)
+                for task in &tasks {
+                    if let Err(e) = (task.f)(&addr, metric.clone()) {
+                        error!("{} failed: {:?}", task.name, e);
                     }
                 }
             }
@@ -108,7 +101,18 @@ impl Worker {
     }
 }
 
-fn get_consensus_power(addr: &str) -> Result<f64> {
+struct Task {
+    name: &'static str,
+    f: fn(&str, Arc<crate::metrics::Metric>) -> Result<()>,
+}
+
+impl Task {
+    fn new(name: &'static str, f: fn(&str, Arc<crate::metrics::Metric>) -> Result<()>) -> Self {
+        Task { name, f }
+    }
+}
+
+fn get_consensus_power(addr: &str, metric: Arc<crate::metrics::Metric>) -> Result<()> {
     let data: Value = ureq::get(&format!("{}/dump_consensus_state", addr))
         .call()
         .context("get_consensus_power ureq call failed")?
@@ -140,10 +144,11 @@ fn get_consensus_power(addr: &str) -> Result<f64> {
         .parse()
         .with_context(|| format!("power:{} convert to f64 failed", power))?;
 
-    Ok(power * 100f64)
+    metric.set_consensus_power(power * 100f64);
+    Ok(())
 }
 
-fn get_network_functional(addr: &str) -> Result<i64> {
+fn get_network_functional(addr: &str, metric: Arc<crate::metrics::Metric>) -> Result<()> {
     let data: Value = ureq::get(&format!("{}/status", addr))
         .call()
         .context("get_network_functional ureq call failed")?
@@ -160,10 +165,11 @@ fn get_network_functional(addr: &str) -> Result<i64> {
         None => bail!("latest_block_time is not a str"),
     };
 
-    let latest_block_timestamp = chrono::DateTime::parse_from_rfc3339(latest_block_time)
+    let latest_block_timestamp = DateTime::parse_from_rfc3339(latest_block_time)
         .context("parse latest_block_time failed")?
         .timestamp();
     let cur_timestamp = Utc::now().naive_utc().timestamp();
 
-    Ok((cur_timestamp - latest_block_timestamp).abs())
+    metric.set_network_functional((cur_timestamp - latest_block_timestamp).abs());
+    Ok(())
 }
