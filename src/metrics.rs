@@ -29,9 +29,9 @@ impl Metrics {
         ret.into_iter().flatten().collect()
     }
 
-    pub(crate) fn get_consensus_power(&self, index: usize) -> Result<Arc<Metric>> {
+    pub(crate) fn get_metric(&self, index: usize) -> Result<Arc<Metric>> {
         if index >= self.metrics.len() {
-            bail!("get_consensus_power index out of range: {}", index)
+            bail!("get_metric index out of range: {}", index)
         }
         Ok(self.metrics[index].clone())
     }

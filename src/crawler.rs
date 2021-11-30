@@ -8,6 +8,7 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
+use chrono::{NaiveDateTime, Utc};
 use log::error;
 use serde_json::Value;
 
@@ -22,8 +23,8 @@ impl Crawler {
             workers.push(Arc::new(RwLock::new(Worker::new(
                 &cfg.targets[i],
                 metrics
-                    .get_consensus_power(i)
-                    .expect("workers and metrics index should be equal"),
+                    .get_metric(i)
+                    .expect("workers and metrics length should be equal"),
             ))));
         }
         Crawler { workers }
@@ -93,6 +94,15 @@ impl Worker {
                         error!("get_consensus_power failed: {:?}", e)
                     }
                 }
+
+                match get_network_functional(&addr) {
+                    Ok(v) => {
+                        metric.set_network_functional(v);
+                    }
+                    Err(e) => {
+                        error!("get_network_functional failed: {:?}", e)
+                    }
+                }
             }
         })));
     }
@@ -101,9 +111,9 @@ impl Worker {
 fn get_consensus_power(addr: &str) -> Result<f64> {
     let data: Value = ureq::get(&format!("{}/dump_consensus_state", addr))
         .call()
-        .context("ureq call failed")?
+        .context("get_consensus_power ureq call failed")?
         .into_json()
-        .context("ureq json failed")?;
+        .context("get_consensus_power ureq json failed")?;
 
     let power = &data["result"]["round_state"]["last_commit"]["votes_bit_array"];
     if power.is_null() {
@@ -131,4 +141,29 @@ fn get_consensus_power(addr: &str) -> Result<f64> {
         .with_context(|| format!("power:{} convert to f64 failed", power))?;
 
     Ok(power * 100f64)
+}
+
+fn get_network_functional(addr: &str) -> Result<i64> {
+    let data: Value = ureq::get(&format!("{}/status", addr))
+        .call()
+        .context("get_network_functional ureq call failed")?
+        .into_json()
+        .context("get_network_functional ureq json failed")?;
+
+    let latest_block_time = &data["result"]["sync_info"]["latest_block_time"];
+    if latest_block_time.is_null() {
+        bail!("latest_block_time is null")
+    }
+
+    let latest_block_time = match latest_block_time.as_str() {
+        Some(v) => v,
+        None => bail!("latest_block_time is not a str"),
+    };
+
+    let latest_block_timestamp = chrono::DateTime::parse_from_rfc3339(latest_block_time)
+        .context("parse latest_block_time failed")?
+        .timestamp();
+    let cur_timestamp = Utc::now().naive_utc().timestamp();
+
+    Ok((cur_timestamp - latest_block_timestamp).abs())
 }
