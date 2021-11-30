@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use prometheus::{proto::MetricFamily, Gauge, Registry};
+use prometheus::{proto::MetricFamily, Gauge, IntGauge, Registry};
 
 use std::sync::Arc;
 
@@ -40,6 +40,7 @@ impl Metrics {
 pub(crate) struct Metric {
     registry: Registry,
     consensus_power: Gauge,
+    network_functional: IntGauge,
 }
 
 impl Default for Metric {
@@ -48,7 +49,12 @@ impl Default for Metric {
             registry: Registry::new(),
             consensus_power: Gauge::new(
                 "consensus_power",
-                "current consensus network voting power",
+                "percentage of the current consensus network voting power",
+            )
+            .unwrap(),
+            network_functional: IntGauge::new(
+                "network_functional",
+                "subtraction of seconds of the latest block time with the current time",
             )
             .unwrap(),
         }
@@ -58,33 +64,17 @@ impl Default for Metric {
 impl Metric {
     fn new(cfg: &Option<crate::config::Registry>) -> Result<Self> {
         let mut m = Metric::default();
-
-        // TODO: beauty this match conditions when metric becomes more
-        match cfg {
-            Some(v) => {
-                // using custom Registry
-                let r = Registry::new_custom(Some(v.prefix.clone()), Some(v.labels.clone()))
-                    .with_context(|| format!("new custom registry failed: {:?}", v))?;
-                let consensus_power =
-                    Gauge::new("consensus_power", "current consensus network voting power")
-                        .context("consensus_power gauge failed")?;
-                r.register(Box::new(consensus_power.clone()))
-                    .context("custom registry registry consensus_power failed")?;
-                m.registry = r;
-                m.consensus_power = consensus_power;
-            }
-            None => {
-                // using default Registry
-                let r = Registry::new();
-                let consensus_power =
-                    Gauge::new("consensus_power", "current consensus network voting power")
-                        .context("consensus_power gauge failed")?;
-                r.register(Box::new(consensus_power.clone()))
-                    .context("default registry registry consensus_power failed")?;
-                m.registry = r;
-                m.consensus_power = consensus_power;
-            }
+        if let Some(c) = cfg {
+            m.registry = Registry::new_custom(Some(c.prefix.clone()), Some(c.labels.clone()))
+                .with_context(|| format!("new custom registry failed: {:?}", c))?;
         }
+
+        m.registry
+            .register(Box::new(m.consensus_power.clone()))
+            .context("register consensus_power failed")?;
+        m.registry
+            .register(Box::new(m.network_functional.clone()))
+            .context("register network functional failed")?;
 
         Ok(m)
     }
@@ -95,5 +85,9 @@ impl Metric {
 
     pub(crate) fn set_consensus_power(&self, v: f64) {
         self.consensus_power.set(v)
+    }
+
+    pub(crate) fn set_network_functional(&self, v: i64) {
+        self.network_functional.set(v)
     }
 }
