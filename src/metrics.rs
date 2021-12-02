@@ -41,6 +41,7 @@ pub(crate) struct Metric {
     registry: Registry,
     consensus_power: Gauge,
     network_functional: IntGauge,
+    total_validators: IntGauge,
 }
 
 impl Default for Metric {
@@ -55,6 +56,11 @@ impl Default for Metric {
             network_functional: IntGauge::new(
                 "network_functional",
                 "subtraction of seconds of the latest block time with the current time",
+            )
+            .unwrap(),
+            total_validators: IntGauge::new(
+                "total_validators",
+                "the total number of validators from the consensus network",
             )
             .unwrap(),
         }
@@ -74,7 +80,10 @@ impl Metric {
             .context("register consensus_power failed")?;
         m.registry
             .register(Box::new(m.network_functional.clone()))
-            .context("register network functional failed")?;
+            .context("register network_functional failed")?;
+        m.registry
+            .register(Box::new(m.total_validators.clone()))
+            .context("register total_validators failed")?;
 
         Ok(m)
     }
@@ -89,5 +98,9 @@ impl Metric {
 
     pub(crate) fn set_network_functional(&self, v: i64) {
         self.network_functional.set(v)
+    }
+
+    pub(crate) fn set_total_validators(&self, v: i64) {
+        self.total_validators.set(v)
     }
 }
