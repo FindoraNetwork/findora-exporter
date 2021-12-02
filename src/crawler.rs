@@ -87,6 +87,7 @@ impl Worker {
             let tasks = vec![
                 Task::new("get_consensus_power", get_consensus_power),
                 Task::new("get_network_functional", get_network_functional),
+                Task::new("get_total_validators", get_total_validators),
             ];
 
             while !done.load(Ordering::SeqCst) {
@@ -171,5 +172,34 @@ fn get_network_functional(addr: &str, metric: Arc<crate::metrics::Metric>) -> Re
     let cur_timestamp = Utc::now().naive_utc().timestamp();
 
     metric.set_network_functional((cur_timestamp - latest_block_timestamp).abs());
+    Ok(())
+}
+
+fn get_total_validators(addr: &str, metric: Arc<crate::metrics::Metric>) -> Result<()> {
+    let data: Value = ureq::get(&format!("{}/validators", addr))
+        .call()
+        .context("get_total_validators ureq call failed")?
+        .into_json()
+        .context("get_total_validators ureq json failed")?;
+
+    let total_validators = &data["result"]["total"];
+    if total_validators.is_null() {
+        bail!("total_validators is null")
+    }
+
+    let total_validators = match total_validators.as_str() {
+        Some(v) => v.to_string(),
+        None => bail!("total_validators is not a str"),
+    };
+
+    let total_validators: i64 = total_validators.parse().with_context(|| {
+        format!(
+            "total_validators:{} convert to i64 failed",
+            total_validators
+        )
+    })?;
+
+    metric.set_total_validators(total_validators);
+
     Ok(())
 }
