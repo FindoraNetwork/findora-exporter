@@ -1,16 +1,19 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
-use std::{collections::HashMap, fs::File, path::Path};
+use std::{collections::HashMap, fs::File};
 
 const DEFAULT_CONFIG_PATH: &str = "config.json";
 
-pub(crate) fn read_config() -> Result<Config> {
-    let mut cfg = Config::default();
-    if Path::new(DEFAULT_CONFIG_PATH).exists() {
-        let f = File::open(DEFAULT_CONFIG_PATH).context("read config file failed")?;
-        cfg = serde_json::from_reader(f).context("deserialize config file failed")?;
-    }
+pub(crate) fn read_config(filepath: &str) -> Result<Config> {
+    let fp = match filepath.is_empty() {
+        true => DEFAULT_CONFIG_PATH,
+        false => filepath,
+    };
+
+    let f = File::open(fp).with_context(|| format!("read config file failed: {:?}", fp))?;
+    let cfg = serde_json::from_reader(f)
+        .with_context(|| format!("deserialize config file failed: {:?}", fp))?;
 
     Ok(cfg)
 }
