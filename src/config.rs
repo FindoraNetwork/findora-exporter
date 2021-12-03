@@ -18,6 +18,7 @@ pub(crate) fn read_config() -> Result<Config> {
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 pub(crate) struct Config {
+    pub(crate) log_level: String,
     pub(crate) crawler: Crawler,
     pub(crate) server: Server,
 }
@@ -25,6 +26,7 @@ pub(crate) struct Config {
 impl Default for Config {
     fn default() -> Self {
         Config {
+            log_level: "trace".to_string(),
             crawler: Crawler::default(),
             server: Server::default(),
         }
