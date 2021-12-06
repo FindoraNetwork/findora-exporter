@@ -3,12 +3,18 @@ use log::error;
 use prometheus::TextEncoder;
 use std::{sync::Arc, thread, thread::JoinHandle};
 
+/// A server instance to listen to an IPv4 address and only serve the /metrics path for Prometheus usage.
 pub(crate) struct Server {
     metrics: Arc<crate::metrics::Metrics>,
     server: Arc<tiny_http::Server>,
 }
 
 impl Server {
+    /// Returns a Server instance.
+    ///
+    /// This new will not execute anything but only returns a Server instance.
+    /// The server only serves http protocol,
+    /// and will Panics on server binding if any error occurs.
     pub(crate) fn new(cfg: &crate::config::Server, metrics: Arc<crate::metrics::Metrics>) -> Self {
         Server {
             metrics,
@@ -18,10 +24,19 @@ impl Server {
         }
     }
 
+    /// This method allows graceful shutdown of server.
     pub(crate) fn close(&self) {
         self.server.unblock()
     }
 
+    /// Spawned a new thread to listen to a specific address and port.
+    /// Serving
+    /// 1. GET method
+    /// 2. /metrics path
+    /// only
+    ///
+    /// returns 403 status code on other requests.
+    /// returns 500 status code on encoding JSON failure.
     pub(crate) fn run(&self) -> Result<JoinHandle<()>> {
         let server = self.server.clone();
         let metrics = self.metrics.clone();
