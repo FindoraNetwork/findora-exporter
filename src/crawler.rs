@@ -12,11 +12,17 @@ use chrono::{DateTime, Utc};
 use log::error;
 use serde_json::Value;
 
+/// A collection of Workers for managing easily.
 pub(crate) struct Crawler {
     workers: Vec<Arc<RwLock<Worker>>>,
 }
 
 impl Crawler {
+    /// Returns a Crawler instance.
+    ///
+    /// This new method will not execute anything but only returns a Crawler instance.
+    /// Every Target in the config structure will be applied to a Worker structure.
+    /// Each Worker is mapping to one Metric structure, if the number couldn't match will panics.
     pub(crate) fn new(cfg: &crate::config::Crawler, metrics: Arc<crate::metrics::Metrics>) -> Self {
         let mut workers = vec![];
         for i in 0..cfg.targets.len() {
@@ -30,12 +36,14 @@ impl Crawler {
         Crawler { workers }
     }
 
+    /// Signaling workers to stop working.
     pub(crate) fn close(&self) {
         for worker in &self.workers {
             worker.write().unwrap().close();
         }
     }
 
+    /// Spawned a thread to start running each worker.
     pub(crate) fn run(&self) -> Result<JoinHandle<()>> {
         let workers = self.workers.clone();
         thread::Builder::new()
@@ -52,7 +60,7 @@ impl Crawler {
 struct Worker {
     addr: String,
     freq: Duration,
-    jobs: Vec<Option<thread::JoinHandle<()>>>,
+    tasks: Vec<Option<thread::JoinHandle<()>>>,
     done: Arc<AtomicBool>,
     metric: Arc<crate::metrics::Metric>,
 }
@@ -62,7 +70,7 @@ impl Worker {
         Worker {
             addr: cfg.host_addr.clone(),
             freq: Duration::from_millis(cfg.frequency_ms),
-            jobs: Vec::with_capacity(3),
+            tasks: Vec::with_capacity(3),
             done: Arc::new(AtomicBool::new(false)),
             metric,
         }
@@ -70,8 +78,8 @@ impl Worker {
 
     fn close(&mut self) {
         self.done.store(true, Ordering::SeqCst);
-        for job in &mut self.jobs {
-            if let Some(t) = job.take() {
+        for task in &mut self.tasks {
+            if let Some(t) = task.take() {
                 let _ = t.join();
             }
         }
@@ -83,7 +91,7 @@ impl Worker {
         let freq = self.freq;
         let metric = self.metric.clone();
 
-        self.jobs.push(Some(thread::spawn(move || {
+        self.tasks.push(Some(thread::spawn(move || {
             let tasks = vec![
                 Task::new("get_consensus_power", get_consensus_power),
                 Task::new("get_network_functional", get_network_functional),
