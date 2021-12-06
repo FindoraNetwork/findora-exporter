@@ -1,24 +1,26 @@
 use anyhow::{Context, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-use std::{collections::HashMap, fs::File};
+use std::{collections::HashMap, fs::File, path::Path};
 
-const DEFAULT_CONFIG_PATH: &str = "config.json";
+pub(crate) const DEFAULT_CONFIG_PATH: &str = "config.json";
 
-pub(crate) fn read_config(filepath: &str) -> Result<Config> {
-    let fp = match filepath.is_empty() {
-        true => DEFAULT_CONFIG_PATH,
-        false => filepath,
-    };
-
-    let f = File::open(fp).with_context(|| format!("read config file failed: {:?}", fp))?;
-    let cfg = serde_json::from_reader(f)
-        .with_context(|| format!("deserialize config file failed: {:?}", fp))?;
+/// Returns Config structure from input file path of a JSON file, otherwise returns default Config
+/// structure if the input file path does not exist.
+///
+/// The default config path equals the const DEFAULT_CONFIG_PATH variable.
+pub(crate) fn read_config(path: &Path) -> Result<Config> {
+    let mut cfg = Config::default();
+    if path.exists() {
+        let f = File::open(path).with_context(|| format!("read config file failed: {:?}", path))?;
+        cfg = serde_json::from_reader(f)
+            .with_context(|| format!("deserialize config file failed: {:?}", path))?;
+    }
 
     Ok(cfg)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub(crate) struct Config {
     pub(crate) log_level: String,
@@ -36,7 +38,7 @@ impl Default for Config {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub(crate) struct Crawler {
     pub(crate) targets: Vec<Target>,
@@ -54,7 +56,7 @@ impl Default for Crawler {
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub(crate) struct Target {
     pub(crate) host_addr: String,
@@ -62,7 +64,7 @@ pub(crate) struct Target {
     pub(crate) registry: Option<Registry>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub(crate) struct Registry {
     pub(crate) prefix: String,
@@ -70,7 +72,7 @@ pub(crate) struct Registry {
     pub(crate) labels: HashMap<String, String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub(crate) struct Server {
     pub(crate) listen_addr: String,
@@ -81,5 +83,77 @@ impl Default for Server {
         Server {
             listen_addr: "127.0.0.1:9090".to_string(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{env, fs, path::PathBuf};
+
+    struct TmpDir {
+        path: Option<PathBuf>,
+    }
+
+    impl TmpDir {
+        fn new<P: Into<PathBuf>>(path: P) -> Result<Self> {
+            let p = path.into();
+            fs::create_dir_all(&p)
+                .with_context(|| format!("failed to create directory: {:?}", p))?;
+            Ok(Self { path: Some(p) })
+        }
+
+        fn path(&self) -> &Path {
+            self.path.as_ref().expect("tmp dir has been removed")
+        }
+
+        fn remove(&mut self) {
+            if let Some(p) = &self.path {
+                let _ = fs::remove_dir_all(p);
+                self.path = None;
+            }
+        }
+    }
+
+    impl Drop for TmpDir {
+        fn drop(&mut self) {
+            self.remove();
+        }
+    }
+
+    #[test]
+    fn test_read_config_fail_back_to_default_values() {
+        let want = Config::default();
+        let got = read_config(Path::new("")).unwrap();
+        assert_eq!(want, got);
+    }
+
+    #[test]
+    fn test_read_config() {
+        let tmp_dir = TmpDir::new(format!(
+            "{}/findora_exporter_test_read_config",
+            env::temp_dir().display()
+        ))
+        .unwrap();
+        let cfg_path = PathBuf::from(&format!("{}/config.json", tmp_dir.path().display()));
+
+        let mut want = Config::default();
+        want.server.listen_addr = "0.0.0.0:33456".to_string();
+        let mut labels = HashMap::new();
+        labels.insert("env".to_string(), "dev".to_string());
+        want.crawler.targets.push(Target {
+            host_addr: "https://somewhere.com/metrics:443".to_string(),
+            frequency_ms: 1000,
+            registry: Some(Registry {
+                prefix: "findora_exporter".to_string(),
+                labels,
+            }),
+        });
+
+        let json = serde_json::to_string(&want).unwrap();
+        fs::write(cfg_path.as_path(), &json).unwrap();
+
+        let got = read_config(cfg_path.as_path()).unwrap();
+        assert_eq!(want, got);
     }
 }

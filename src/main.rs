@@ -1,4 +1,4 @@
-use std::{env, sync::Arc};
+use std::{env, path::Path, sync::Arc};
 
 mod config;
 mod crawler;
@@ -8,8 +8,8 @@ mod server;
 fn main() {
     match parse_command() {
         Command::Help => print_help(),
-        Command::ConfigPath(p) => {
-            let cfg = config::read_config(&p).expect("read config failed");
+        Command::ConfigPath(path) => {
+            let cfg = config::read_config(Path::new(&path)).expect("read config failed");
 
             let log_level = match cfg.log_level.to_lowercase().as_ref() {
                 "trace" => log::Level::Trace,
@@ -48,7 +48,8 @@ fn main() {
 fn print_help() {
     println!(
         "Usage findora-exporter [OPTION]... [FILE]...
-Just run the program without any options will using default config settings.
+Just run the program without any options will using default config settings,
+Default config path is a file named `config.json` under the current folder.
 
 Mandatory arguments to long options.
 --config    specific the config file path"
@@ -63,7 +64,7 @@ enum Command {
 fn parse_command() -> Command {
     let args: Vec<String> = env::args().collect();
     match args.len() {
-        0..=1 => Command::ConfigPath("".to_string()),
+        0..=1 => Command::ConfigPath(crate::config::DEFAULT_CONFIG_PATH.to_string()),
         _ => match args[0].as_ref() {
             "--config" => Command::ConfigPath(args[1].clone()),
             _ => Command::Help,
