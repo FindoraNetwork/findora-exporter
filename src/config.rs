@@ -89,37 +89,8 @@ impl Default for Server {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_util::TmpDir;
     use std::{env, fs, path::PathBuf};
-
-    struct TmpDir {
-        path: Option<PathBuf>,
-    }
-
-    impl TmpDir {
-        fn new<P: Into<PathBuf>>(path: P) -> Result<Self> {
-            let p = path.into();
-            fs::create_dir_all(&p)
-                .with_context(|| format!("failed to create directory: {:?}", p))?;
-            Ok(Self { path: Some(p) })
-        }
-
-        fn path(&self) -> &Path {
-            self.path.as_ref().expect("tmp dir has been removed")
-        }
-
-        fn remove(&mut self) {
-            if let Some(p) = &self.path {
-                let _ = fs::remove_dir_all(p);
-                self.path = None;
-            }
-        }
-    }
-
-    impl Drop for TmpDir {
-        fn drop(&mut self) {
-            self.remove();
-        }
-    }
 
     #[test]
     fn test_read_config_fail_back_to_default_values() {

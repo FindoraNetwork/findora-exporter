@@ -8,40 +8,41 @@ mod server;
 fn main() {
     match parse_command() {
         Command::Help => print_help(),
-        Command::ConfigPath(path) => {
-            let cfg = config::read_config(Path::new(&path)).expect("read config failed");
+        Command::ConfigPath(path) => run(&path),
+    }
+}
 
-            let log_level = match cfg.log_level.to_lowercase().as_ref() {
-                "trace" => log::Level::Trace,
-                "debug" => log::Level::Debug,
-                "error" => log::Level::Error,
-                "warn" => log::Level::Warn,
-                "info" => log::Level::Info,
-                _ => log::Level::Trace,
-            };
-            simple_logger::init_with_level(log_level).expect("simple logger init failed");
+fn run(cfg_path: &str) {
+    let cfg = config::read_config(Path::new(cfg_path)).expect("read config failed");
 
-            let metrics =
-                Arc::new(metrics::Metrics::new(&cfg.crawler).expect("metrics new failed"));
-            let server = server::Server::new(&cfg.server, metrics.clone());
-            let crawler = crawler::Crawler::new(&cfg.crawler, metrics);
+    let log_level = match cfg.log_level.to_lowercase().as_ref() {
+        "trace" => log::Level::Trace,
+        "debug" => log::Level::Debug,
+        "error" => log::Level::Error,
+        "warn" => log::Level::Warn,
+        "info" => log::Level::Info,
+        _ => log::Level::Trace,
+    };
+    simple_logger::init_with_level(log_level).expect("simple logger init failed");
 
-            let threads = vec![
-                server.run().expect("server thread run failed"),
-                crawler.run().expect("crawler thread run failed"),
-            ];
+    let metrics = Arc::new(metrics::Metrics::new(&cfg.crawler).expect("metrics new failed"));
+    let server = server::Server::new(&cfg.server, metrics.clone());
+    let crawler = crawler::Crawler::new(&cfg.crawler, metrics);
 
-            ctrlc::set_handler(move || {
-                server.close();
-                crawler.close();
-            })
-            .expect("setting Ctrl-C handler failed");
+    let threads = vec![
+        server.run().expect("server thread run failed"),
+        crawler.run().expect("crawler thread run failed"),
+    ];
 
-            for t in threads {
-                // no matter what we need to wait all of the thread stopped
-                let _ = t.join();
-            }
-        }
+    ctrlc::set_handler(move || {
+        server.close();
+        crawler.close();
+    })
+    .expect("setting Ctrl-C handler failed");
+
+    for t in threads {
+        // no matter what we need to wait all of the thread stopped
+        let _ = t.join();
     }
 }
 
@@ -56,6 +57,7 @@ Mandatory arguments to long options.
     )
 }
 
+#[derive(Debug, PartialEq)]
 enum Command {
     ConfigPath(String),
     Help,
@@ -69,5 +71,107 @@ fn parse_command() -> Command {
             "--config" => Command::ConfigPath(args[1].clone()),
             _ => Command::Help,
         },
+    }
+}
+
+#[cfg(test)]
+mod test_util {
+    use anyhow::{Context, Result};
+    use std::{
+        fs,
+        path::{Path, PathBuf},
+    };
+
+    pub(crate) struct TmpDir {
+        path: Option<PathBuf>,
+    }
+
+    impl TmpDir {
+        pub(crate) fn new<P: Into<PathBuf>>(path: P) -> Result<Self> {
+            let p = path.into();
+            fs::create_dir_all(&p)
+                .with_context(|| format!("failed to create directory: {:?}", p))?;
+            Ok(Self { path: Some(p) })
+        }
+
+        pub(crate) fn path(&self) -> &Path {
+            self.path.as_ref().expect("tmp dir has been removed")
+        }
+
+        pub(crate) fn remove(&mut self) {
+            if let Some(p) = &self.path {
+                let _ = fs::remove_dir_all(p);
+                self.path = None;
+            }
+        }
+    }
+
+    impl Drop for TmpDir {
+        fn drop(&mut self) {
+            self.remove();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{config, test_util::TmpDir};
+    use nix::{
+        sys::{
+            signal::{kill, Signal},
+            wait::waitpid,
+        },
+        unistd,
+        unistd::ForkResult,
+    };
+    use std::fs;
+
+    #[test]
+    fn test_parse_command_help() {
+        assert_eq!(Command::Help, parse_command());
+    }
+
+    #[test]
+    fn test_run() {
+        let tmp_dir = TmpDir::new(format!("{}/test_run", env::temp_dir().display())).unwrap();
+        let cfg_path = format!("{}/config.json", tmp_dir.path().display());
+
+        let mut cfg = config::Config::default();
+        cfg.log_level = "info".to_string();
+        // crawling the findora mainnet for testing
+        cfg.crawler.targets = vec![config::Target {
+            host_addr: "https://prod-mainnet.prod.findora.org:26657".to_string(),
+            frequency_ms: 300,
+            registry: None,
+        }];
+        let json = serde_json::to_string(&cfg).unwrap();
+        fs::write(&cfg_path, &json).unwrap();
+
+        match unsafe { unistd::fork() } {
+            Ok(ForkResult::Parent { child }) => {
+                if let Err(ureq::Error::Status(code, _)) = ureq::get("127.0.0.1:9090").call() {
+                    assert_eq!(403, code);
+                };
+
+                if let Err(ureq::Error::Status(code, _)) =
+                    ureq::get("127.0.0.1:9090/not_metrics").call()
+                {
+                    assert_eq!(403, code);
+                };
+
+                if let Ok(response) = ureq::get("127.0.0.1:9090/metrics").call() {
+                    assert_eq!(200, response.status());
+                };
+
+                kill(child, Signal::SIGTERM).unwrap();
+                waitpid(child, None).unwrap();
+            }
+            Ok(ForkResult::Child) => {
+                run(&cfg_path);
+                std::process::exit(0);
+            }
+            Err(e) => panic!("{:?}", e),
+        }
     }
 }
