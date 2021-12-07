@@ -3,6 +3,13 @@ name = "findora-exporter"
 version = "0.1.0"
 authors = ["tommady <tommady@users.noreply.github.com>"]
 edition = "2021"
+documentation = "https://github.com/FindoraNetwork/findora-exporter"
+homepage = "https://github.com/FindoraNetwork/findora-exporter"
+repository = "https://github.com/FindoraNetwork/findora-exporter"
+license = "MIT"
+description = """
+findora-exporter is a Prometheus custom exporter for exposing custom metrics.
+"""
 
 [dependencies]
 simple_logger = { version = "1.15", default-features = false, features = ["threads"] }
@@ -24,3 +31,14 @@ opt-level = 's'
 lto = true
 codegen-units = 1
 panic = 'abort'
+
+[package.metadata.deb]
+maintainer-scripts = "debian/"
+section = "utility"
+license-file = ["LICENSE"]
+assets = [
+    ["target/x86_64-unknown-linux-musl/release/findora-exporter", "usr/bin", "755"],
+]
+extended-description = """\
+the deb package will try to install the findora-exporter into systemd service
+"""
