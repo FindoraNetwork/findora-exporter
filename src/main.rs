@@ -67,8 +67,8 @@ fn parse_command() -> Command {
     let args: Vec<String> = env::args().collect();
     match args.len() {
         0..=1 => Command::ConfigPath(crate::config::DEFAULT_CONFIG_PATH.to_string()),
-        _ => match args[0].as_ref() {
-            "--config" => Command::ConfigPath(args[1].clone()),
+        _ => match args[1].as_ref() {
+            "--config" => Command::ConfigPath(args[2].clone()),
             _ => Command::Help,
         },
     }
@@ -126,6 +126,11 @@ mod tests {
         unistd::ForkResult,
     };
     use std::fs;
+
+    #[test]
+    fn test_parse_command_help() {
+        assert_eq!(Command::Help, parse_command());
+    }
 
     #[test]
     fn test_run() {
