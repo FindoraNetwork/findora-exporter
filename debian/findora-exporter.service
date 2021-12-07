@@ -1,0 +1,16 @@
+[Unit]
+Description=Findora Exporter for Prometheus
+After=network-online.target
+StartLimitBurst=5
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=/usr/bin/findora-exporter --config /etc/prometheus/findora_exporter_config.json
+Restart=always
+RestartSec=1
+User=ubuntu
+StandardOutput=inherit
+StandardError=inherit
+
+[Install]
+WantedBy=multi-user.target
