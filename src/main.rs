@@ -137,8 +137,10 @@ mod tests {
         let tmp_dir = TmpDir::new(format!("{}/test_run", env::temp_dir().display())).unwrap();
         let cfg_path = format!("{}/config.json", tmp_dir.path().display());
 
-        let mut cfg = config::Config::default();
-        cfg.log_level = "info".to_string();
+        let mut cfg = config::Config {
+            log_level: "info".to_string(),
+            ..Default::default()
+        };
         // crawling the findora mainnet for testing
         cfg.crawler.targets = vec![config::Target {
             host_addr: "https://prod-mainnet.prod.findora.org:26657".to_string(),
