@@ -128,11 +128,6 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn test_parse_command_help() {
-        assert_eq!(Command::Help, parse_command());
-    }
-
-    #[test]
     fn test_run() {
         let tmp_dir = TmpDir::new(format!("{}/test_run", env::temp_dir().display())).unwrap();
         let cfg_path = format!("{}/config.json", tmp_dir.path().display());
