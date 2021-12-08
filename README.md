@@ -19,6 +19,76 @@ This exporter has below custom metrics right now!
 
 ## Installation
 
+This project follows [Semantic Versioning]
+
+[findora-exporter release]
+
+### From Deb Package
+
+Install it by below command
+
+```bash
+dpkg --install findora-exporter_x.x.x_amd64.deb
+```
+
+After that
+* An executable binary will be put into `/usr/local/bin/findora-exporter`
+* A systemd `findora-exporter.service` will be loaded
+* expecting a config file at `/etc/prometheus/findora_exporter_config.json`
+
+```bash
+$ systemctl status findora-exporter.service
+● findora-exporter.service - Findora Exporter for Prometheus
+     Loaded: loaded (/lib/systemd/system/findora-exporter.service; enabled; vendor preset: enabled)
+     Active: inactive (dead)
+```
+
+### From Tarball
+Extracting it by below command
+
+```bash
+tar -xzf findora-exporter-x.x.x-x86_64-unknown-linux-musl.tar.gz
+```
+
+### Default Configuration Behavior
+
+* listening `127.0.0.1:9090` address for Prometheus scraping
+* crawling `http://127.0.0.1:26657` every 3 seconds
+* displaying `trace` level information
+
+### Specific A Configuration
+
+for example
+```json
+{
+    "log_level": "error",
+    "server": {
+	"listen_addr": "127.0.0.1:8080"
+    },
+    "crawler": {
+        "targets": [
+            {
+                "host_addr": "https://prod-testnet.prod.findora.org:26657",
+		"registry": {
+                    "prefix": "findora_exporter",
+		    "env": "prod-testnet"
+		}
+            },
+            {
+                "host_addr": "https://prod-mainnet.prod.findora.org:26657",
+		"registry": {
+		    "prefix": "findora_exporter",
+		    "env": "prod-mainnet"
+		}
+            }
+        ]
+    }
+}
+```
+
+[Semantic Versioning]: https://semver.org/#semantic-versioning-200
+[findora-exporter release]:https://github.com/FindoraNetwork/findora-exporter/releases
+
 ## Contributing
 This project's goal is to provide the custom metrics by
 * Small size of binary as possible
