@@ -1,6 +1,6 @@
 [package]
 name = "findora-exporter"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["tommady <tommady@users.noreply.github.com>"]
 edition = "2021"
 readme = "README.md"
