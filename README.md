@@ -19,9 +19,11 @@ This exporter has below custom metrics right now!
 
 ## Installation
 
-This project follows [Semantic Versioning]
+Please download the suitable asset from
 
-[findora-exporter release]
+### findora-exporter [release]
+
+This project follows [Semantic Versioning]
 
 ### From Deb Package
 
@@ -87,7 +89,7 @@ for example
 ```
 
 [Semantic Versioning]: https://semver.org/#semantic-versioning-200
-[findora-exporter release]:https://github.com/FindoraNetwork/findora-exporter/releases
+[release]:https://github.com/FindoraNetwork/findora-exporter/releases
 
 ## Contributing
 This project's goal is to provide the custom metrics by
