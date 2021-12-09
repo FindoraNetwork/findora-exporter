@@ -21,7 +21,7 @@ This exporter has below custom metrics right now!
 
 Please download the suitable asset from
 
-### findora-exporter [release]
+#### findora-exporter [prebuilt]
 
 This project follows [Semantic Versioning]
 
@@ -46,10 +46,26 @@ $ systemctl status findora-exporter.service
 ```
 
 ### From Tarball
+
 Extracting it by below command
 
 ```bash
 tar -xzf findora-exporter-x.x.x-x86_64-unknown-linux-musl.tar.gz
+```
+
+### From Source Code
+
+Installing [Rust]
+
+* Running test by
+```bash
+$ cargo test --all --all-features --no-fail-fast
+test result: ok. x passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+* Building it by
+```bash
+cargo build --release
 ```
 
 ### Default Configuration Behavior
@@ -89,7 +105,8 @@ for example
 ```
 
 [Semantic Versioning]: https://semver.org/#semantic-versioning-200
-[release]:https://github.com/FindoraNetwork/findora-exporter/releases
+[prebuilt]: https://github.com/FindoraNetwork/findora-exporter/releases
+[Rust]: https://www.rust-lang.org/learn/get-started
 
 ## Contributing
 This project's goal is to provide the custom metrics by
