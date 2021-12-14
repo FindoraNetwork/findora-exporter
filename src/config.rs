@@ -49,7 +49,7 @@ impl Default for Crawler {
         Crawler {
             targets: vec![Target {
                 host_addr: "http://127.0.0.1:26657".to_string(),
-                frequency_ms: 3000,
+                frequency_ms: 15000,
                 registry: None,
             }],
         }

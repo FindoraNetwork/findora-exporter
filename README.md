@@ -71,7 +71,7 @@ cargo build --release
 ### Default Configuration Behavior
 
 * listening `127.0.0.1:9090` address for Prometheus scraping
-* crawling `http://127.0.0.1:26657` every 3 seconds
+* crawling `http://127.0.0.1:26657` every 15 seconds
 * displaying `trace` level information
 
 ### Specific A Configuration

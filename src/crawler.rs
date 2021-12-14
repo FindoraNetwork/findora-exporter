@@ -99,12 +99,12 @@ impl Worker {
             ];
 
             while !done.load(Ordering::SeqCst) {
-                thread::sleep(freq);
                 for task in &tasks {
                     if let Err(e) = (task.f)(&addr, metric.clone()) {
                         error!("{} failed: {:?}", task.name, e);
                     }
                 }
+                thread::sleep(freq);
             }
         })));
     }
