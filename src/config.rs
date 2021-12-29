@@ -1,7 +1,12 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-use std::{collections::HashMap, fs::File, path::Path};
+use std::{
+    collections::HashMap,
+    fs::File,
+    hash::{Hash, Hasher},
+    path::Path,
+};
 
 pub(crate) const DEFAULT_CONFIG_PATH: &str = "config.json";
 
@@ -50,13 +55,13 @@ impl Default for Crawler {
             targets: vec![
                 Target {
                     host_addr: "http://127.0.0.1:26657".to_string(),
-                    task_name: "get_network_functional".to_string(),
+                    task_name: TaskName::NetworkFunctional,
                     frequency_ms: 15000,
                     registry: None,
                 },
                 Target {
                     host_addr: "http://127.0.0.1:26657".to_string(),
-                    task_name: "get_total_validators".to_string(),
+                    task_name: TaskName::TotalCountOfValidators,
                     frequency_ms: 15000,
                     registry: None,
                 },
@@ -65,13 +70,35 @@ impl Default for Crawler {
     }
 }
 
+#[derive(Debug, PartialEq, Hash, Serialize, Deserialize)]
+pub(crate) enum TaskName {
+    ConsensusPower,
+    NetworkFunctional,
+    TotalCountOfValidators,
+    TotalBalanceOfRelayers,
+}
+
+impl Default for TaskName {
+    fn default() -> Self {
+        TaskName::NetworkFunctional
+    }
+}
+
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub(crate) struct Target {
     pub(crate) host_addr: String,
-    pub(crate) task_name: String,
+    pub(crate) task_name: TaskName,
     pub(crate) frequency_ms: u64,
     pub(crate) registry: Option<Registry>,
+}
+
+impl Hash for Target {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.host_addr.hash(state);
+        self.task_name.hash(state);
+        self.frequency_ms.hash(state);
+    }
 }
 
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -124,7 +151,7 @@ mod tests {
         labels.insert("env".to_string(), "dev".to_string());
         want.crawler.targets.push(Target {
             host_addr: "https://somewhere.com/metrics:443".to_string(),
-            task_name: "get_network_functional".to_string(),
+            task_name: TaskName::NetworkFunctional,
             frequency_ms: 1000,
             registry: Some(Registry {
                 prefix: "findora_exporter".to_string(),
