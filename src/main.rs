@@ -4,6 +4,7 @@ mod config;
 mod crawler;
 mod metrics;
 mod server;
+mod utils;
 
 fn main() {
     match parse_command() {
