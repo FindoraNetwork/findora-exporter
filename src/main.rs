@@ -1,5 +1,7 @@
 use std::{env, path::Path, sync::Arc};
 
+use prometheus::core::Atomic;
+
 mod config;
 mod crawler;
 mod metrics;
@@ -26,7 +28,7 @@ fn run(cfg_path: &str) {
     };
     simple_logger::init_with_level(log_level).expect("simple logger init failed");
 
-    let metrics = Arc::new(metrics::Metrics::new(&cfg.crawler).expect("metrics new failed"));
+    let metrics = Arc::new((metrics::Metrics::new(&cfg.crawler).expect("metrics new failed")));
     let server = server::Server::new(&cfg.server, metrics.clone());
     let crawler = crawler::Crawler::new(&cfg.crawler, metrics);
 
@@ -148,6 +150,7 @@ mod tests {
         // crawling the findora mainnet for testing
         cfg.crawler.targets = vec![config::Target {
             host_addr: "https://prod-mainnet.prod.findora.org:26657".to_string(),
+            task_name: config::TaskName::TotalCountOfValidators,
             frequency_ms: 300,
             registry: None,
         }];

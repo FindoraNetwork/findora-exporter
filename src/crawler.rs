@@ -7,32 +7,53 @@ use std::{
     {thread, thread::JoinHandle},
 };
 
+use crate::{config::TaskName, utils::calculate_hash};
+
 use anyhow::{bail, Context, Result};
 use chrono::{DateTime, Utc};
 use log::error;
+use prometheus::core::{Atomic, Number};
 use serde_json::Value;
 
 /// A collection of Workers for managing easily.
-pub(crate) struct Crawler {
-    workers: Vec<Arc<RwLock<Worker>>>,
+pub(crate) struct Crawler<T: Atomic> {
+    workers: Vec<Arc<RwLock<Worker<T>>>>,
 }
 
-impl Crawler {
+impl<T> Crawler<T>
+where
+    T: Atomic + 'static,
+{
     /// Returns a Crawler instance.
     ///
     /// This new method will not execute anything but only returns a Crawler instance.
     /// Every Target in the config structure will be applied to a Worker structure.
-    /// Each Worker is mapping to one Metric structure, if the number couldn't match will panics.
-    pub(crate) fn new(cfg: &crate::config::Crawler, metrics: Arc<crate::metrics::Metrics>) -> Self {
+    pub(crate) fn new(
+        cfg: &crate::config::Crawler,
+        metrics: Arc<crate::metrics::Metrics<T>>,
+    ) -> Self {
         let mut workers = vec![];
-        for i in 0..cfg.targets.len() {
-            workers.push(Arc::new(RwLock::new(Worker::new(
-                &cfg.targets[i],
-                metrics
-                    .get_metric(i)
-                    .expect("workers and metrics length should be equal"),
-            ))));
+        for target in &cfg.targets {
+            let metric = metrics
+                .get_metric(calculate_hash(target))
+                .expect("get_metric failed");
+
+            let task = match target.task_name {
+                TaskName::ConsensusPower => Task::new("get_consensus_power", get_consensus_power),
+                TaskName::NetworkFunctional => {
+                    Task::new("get_network_functional", get_network_functional)
+                }
+                TaskName::TotalCountOfValidators => {
+                    Task::new("get_total_validators", get_total_validators)
+                }
+                TaskName::TotalBalanceOfRelayers => {
+                    Task::new("get_relayer_balance", get_relayer_balance)
+                }
+            };
+
+            workers.push(Arc::new(RwLock::new(Worker::new(target, metric, task))));
         }
+
         Crawler { workers }
     }
 
@@ -57,20 +78,27 @@ impl Crawler {
     }
 }
 
-struct Worker {
+struct Worker<T: Atomic> {
     addr: String,
     freq: Duration,
-    tasks: Vec<Option<thread::JoinHandle<()>>>,
+    task: Task<T>,
     done: Arc<AtomicBool>,
-    metric: Arc<crate::metrics::Metric>,
+    metric: Arc<crate::metrics::Metric<T>>,
 }
 
-impl Worker {
-    fn new(cfg: &crate::config::Target, metric: Arc<crate::metrics::Metric>) -> Self {
+impl<T> Worker<T>
+where
+    T: Atomic + 'static,
+{
+    fn new(
+        cfg: &crate::config::Target,
+        metric: Arc<crate::metrics::Metric<T>>,
+        task: Task<T>,
+    ) -> Self {
         Worker {
             addr: cfg.host_addr.clone(),
             freq: Duration::from_millis(cfg.frequency_ms),
-            tasks: Vec::with_capacity(3),
+            task,
             done: Arc::new(AtomicBool::new(false)),
             metric,
         }
@@ -78,50 +106,39 @@ impl Worker {
 
     fn close(&mut self) {
         self.done.store(true, Ordering::SeqCst);
-        for task in &mut self.tasks {
-            if let Some(t) = task.take() {
-                let _ = t.join();
-            }
-        }
     }
 
-    fn run(&mut self) {
+    fn run(&self) {
         let addr = self.addr.clone();
         let done = self.done.clone();
         let freq = self.freq;
         let metric = self.metric.clone();
 
-        self.tasks.push(Some(thread::spawn(move || {
-            let tasks = vec![
-                Task::new("get_consensus_power", get_consensus_power),
-                Task::new("get_network_functional", get_network_functional),
-                Task::new("get_total_validators", get_total_validators),
-            ];
-
-            while !done.load(Ordering::SeqCst) {
-                for task in &tasks {
-                    if let Err(e) = (task.f)(&addr, metric.clone()) {
-                        error!("{} failed: {:?}", task.name, e);
-                    }
-                }
-                thread::sleep(freq);
+        while !done.load(Ordering::SeqCst) {
+            match (self.task.f)(&addr) {
+                Ok(v) => metric.set(v),
+                Err(e) => error!("{} failed: {:?}", self.task.name, e),
             }
-        })));
+            thread::sleep(freq);
+        }
     }
 }
 
-struct Task {
+struct Task<T: Atomic> {
     name: &'static str,
-    f: fn(&str, Arc<crate::metrics::Metric>) -> Result<()>,
+    f: fn(&str) -> Result<<T as Atomic>::T>,
 }
 
-impl Task {
-    fn new(name: &'static str, f: fn(&str, Arc<crate::metrics::Metric>) -> Result<()>) -> Self {
+impl<T> Task<T>
+where
+    T: Atomic,
+{
+    fn new(name: &'static str, f: fn(&str) -> Result<<T as Atomic>::T>) -> Self {
         Task { name, f }
     }
 }
 
-fn get_consensus_power(addr: &str, metric: Arc<crate::metrics::Metric>) -> Result<()> {
+fn get_consensus_power<N: Number>(addr: &str) -> Result<N> {
     let data: Value = ureq::get(&format!("{}/dump_consensus_state", addr))
         .call()
         .context("get_consensus_power ureq call failed")?
@@ -149,15 +166,14 @@ fn get_consensus_power(addr: &str, metric: Arc<crate::metrics::Metric>) -> Resul
         None => bail!("power cannot find = symbol"),
     };
 
-    let power: f64 = power
+    let power: i64 = power
         .parse()
-        .with_context(|| format!("power:{} convert to f64 failed", power))?;
+        .with_context(|| format!("power:{} convert to i64 failed", power))?;
 
-    metric.set_consensus_power(power * 100f64);
-    Ok(())
+    Ok(N::from_i64(power * 100))
 }
 
-fn get_network_functional(addr: &str, metric: Arc<crate::metrics::Metric>) -> Result<()> {
+fn get_network_functional<N: Number>(addr: &str) -> Result<N> {
     let data: Value = ureq::get(&format!("{}/status", addr))
         .call()
         .context("get_network_functional ureq call failed")?
@@ -179,11 +195,10 @@ fn get_network_functional(addr: &str, metric: Arc<crate::metrics::Metric>) -> Re
         .timestamp();
     let cur_timestamp = Utc::now().naive_utc().timestamp();
 
-    metric.set_network_functional((cur_timestamp - latest_block_timestamp).abs());
-    Ok(())
+    Ok(N::from_i64((cur_timestamp - latest_block_timestamp).abs()))
 }
 
-fn get_total_validators(addr: &str, metric: Arc<crate::metrics::Metric>) -> Result<()> {
+fn get_total_validators<N: Number>(addr: &str) -> Result<N> {
     let data: Value = ureq::get(&format!("{}/validators", addr))
         .call()
         .context("get_total_validators ureq call failed")?
@@ -207,7 +222,45 @@ fn get_total_validators(addr: &str, metric: Arc<crate::metrics::Metric>) -> Resu
         )
     })?;
 
-    metric.set_total_validators(total_validators);
-
-    Ok(())
+    Ok(N::from_i64(total_validators))
 }
+
+fn get_relayer_balance<N: Number>(addr: &str) -> Result<N> {
+    // asking the bridge for the count of relayers
+    let count: Value = ureq::post(addr)
+         .send_json(ureq::json!({
+             "method":"eth_call",
+             "jsonrpc":"2.0",
+             "id":0,
+             "params":[
+                 {
+                     "data":"0xca15c873e2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4",
+                     "to":"0x26925046a09d9AEfe6903eae0aD090be06186Bd9"
+                 },
+                 "latest"
+             ],
+         }))?
+         .into_json()?;
+
+    Ok(N::from_i64(0))
+}
+
+// As bridge for releyer count
+// curl -X POST "https://dev-qa01.dev.findora.org:8545" -H "Content-Type: application/json" --data '[
+// {"method":"eth_call", "jsonrpc":"2.0", "id": 2, "params":[{"data":"0xca15c873e2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4", "to":"0x26925046a09d9AEfe6903eae0aD090be06186Bd9"},"latest"]}
+// ]'
+// [{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000003","id":2}]
+//
+// Ask Bridge for releyers address
+// curl -X POST "https://dev-qa01.dev.findora.org:8545" -H "Content-Type: application/json" --data
+// '[
+//      {"method":"eth_call", "jsonrpc":"2.0", "id": 1, "params":[{"data":"0x9010d07ce2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc40000000000000000000000000000000000000000000000000000000000000000", "to":"0x26925046a09d9AEfe6903eae0aD090be06186Bd9"}, "latest"]},
+//      {"method":"eth_call", "jsonrpc":"2.0", "id": 2, "params":[{"data":"0x9010d07ce2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc40000000000000000000000000000000000000000000000000000000000000001", "to":"0x26925046a09d9AEfe6903eae0aD090be06186Bd9"}, "latest"]},
+//      {"method":"eth_call", "jsonrpc":"2.0", "id": 3, "params":[{"data":"0x9010d07ce2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc40000000000000000000000000000000000000000000000000000000000000002", "to":"0x26925046a09d9AEfe6903eae0aD090be06186Bd9"}, "latest"]}
+//  ]'
+//
+// [{"jsonrpc":"2.0","result":"0x0000000000000000000000002bae5160a67ffe0d2dd9114c521dd51689fdb549","id":2}]
+//
+// Ask for the balances
+// curl -X POST "https://dev-qa01.dev.findora.org:8545" -H "Content-Type: application/json" --data '[{"method":"eth_getBalance", "jsonrpc":"2.0", "id": 1, "params":["0x2bae5160a67ffe0d2dd9114c521dd51689fdb549", "latest"]}]'
+// [{"jsonrpc":"2.0","result":"0x8aa21e312be77000","id":1}]

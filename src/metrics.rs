@@ -16,7 +16,7 @@ pub(crate) struct Metrics<T: Atomic> {
 
 impl<T> Metrics<T>
 where
-    T: Atomic + 'static + std::fmt::Debug,
+    T: Atomic + 'static,
 {
     /// Returns a Metrics instance.
     ///
@@ -79,7 +79,7 @@ where
 
 impl<T> Metric<T>
 where
-    T: Atomic + 'static + std::fmt::Debug,
+    T: Atomic + 'static,
 {
     /// Returns a Metric instance.
     ///
@@ -117,7 +117,7 @@ where
 
         registry
             .register(Box::new(metric))
-            .with_context(|| format!("register metric failed: {:?}", metric))?;
+            .context("register metric failed")?;
 
         Ok(Metric { registry, metric })
     }
