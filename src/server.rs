@@ -1,21 +1,27 @@
 use anyhow::{Context, Result};
 use log::error;
-use prometheus::TextEncoder;
+use prometheus::{core::Atomic, TextEncoder};
 use std::{sync::Arc, thread, thread::JoinHandle};
 
 /// A server instance to listen to an IPv4 address and only serve the /metrics path for Prometheus usage.
-pub(crate) struct Server {
-    metrics: Arc<crate::metrics::Metrics>,
+pub(crate) struct Server<T: Atomic> {
+    metrics: Arc<crate::metrics::Metrics<T>>,
     server: Arc<tiny_http::Server>,
 }
 
-impl Server {
+impl<T> Server<T>
+where
+    T: Atomic + 'static,
+{
     /// Returns a Server instance.
     ///
     /// This new method will not execute anything but only returns a Server instance.
     /// The server only serves http protocol,
     /// and will Panics on server binding if any error occurs.
-    pub(crate) fn new(cfg: &crate::config::Server, metrics: Arc<crate::metrics::Metrics>) -> Self {
+    pub(crate) fn new(
+        cfg: &crate::config::Server,
+        metrics: Arc<crate::metrics::Metrics<T>>,
+    ) -> Self {
         Server {
             metrics,
             server: Arc::new(
