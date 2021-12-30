@@ -84,7 +84,7 @@ impl Default for TaskName {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub(crate) struct Target {
     pub(crate) host_addr: String,
@@ -98,6 +98,14 @@ impl Hash for Target {
         self.host_addr.hash(state);
         self.task_name.hash(state);
         self.frequency_ms.hash(state);
+    }
+}
+
+impl PartialEq for Target {
+    fn eq(&self, other: &Self) -> bool {
+        self.host_addr == other.host_addr
+            && self.task_name == other.task_name
+            && self.frequency_ms == other.frequency_ms
     }
 }
 

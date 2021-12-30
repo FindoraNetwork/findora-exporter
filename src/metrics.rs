@@ -86,7 +86,7 @@ where
     /// Registers a custom registry if not None in the config file,
     /// if None then registers a default registry instead.
     fn new(cfg: &crate::config::Target) -> Result<Self> {
-        let registry = match cfg.registry {
+        let registry = match &cfg.registry {
             Some(r) => Registry::new_custom(Some(r.prefix.clone()), Some(r.labels.clone()))
                 .with_context(|| format!("new custom registry failed: {:?}", r))?,
             None => Registry::new(),
@@ -116,7 +116,7 @@ where
         };
 
         registry
-            .register(Box::new(metric))
+            .register(Box::new(metric.clone()))
             .context("register metric failed")?;
 
         Ok(Metric { registry, metric })

@@ -227,7 +227,7 @@ fn get_total_validators<N: Number>(addr: &str) -> Result<N> {
 
 fn get_relayer_balance<N: Number>(addr: &str) -> Result<N> {
     // asking the bridge for the count of relayers
-    let count: Value = ureq::post(addr)
+    let _count: Value = ureq::post(addr)
          .send_json(ureq::json!({
              "method":"eth_call",
              "jsonrpc":"2.0",
