@@ -1,25 +1,37 @@
 use anyhow::{bail, Context, Result};
-use prometheus::{proto::MetricFamily, Gauge, IntGauge, Registry};
+use prometheus::{
+    core::{Atomic, GenericGauge},
+    proto::MetricFamily,
+    Registry,
+};
 
-use std::sync::Arc;
+use crate::{config::TaskName, utils::calculate_hash};
+
+use std::{collections::HashMap, sync::Arc};
 
 /// A wrapping collection for Metric structure.
-pub(crate) struct Metrics {
-    metrics: Vec<Arc<Metric>>,
+pub(crate) struct Metrics<T: Atomic> {
+    metrics: HashMap<u64, Arc<Metric<T>>>,
 }
 
-impl Metrics {
+impl<T> Metrics<T>
+where
+    T: Atomic + 'static + std::fmt::Debug,
+{
     /// Returns a Metrics instance.
     ///
     /// This method registers Metric structures for managing easily.
     /// Returns error when registering Metric on failure.
     pub(crate) fn new(cfg: &crate::config::Crawler) -> Result<Self> {
-        let mut metrics = vec![];
+        let mut metrics = HashMap::with_capacity(cfg.targets.len());
         for target in &cfg.targets {
-            metrics
-                .push(Arc::new(Metric::new(&target.registry).with_context(
-                    || format!("new metric failed: {:?}", target),
-                )?));
+            metrics.insert(
+                calculate_hash(target),
+                Arc::new(
+                    Metric::new(target)
+                        .with_context(|| format!("new metric failed: {:?}", target))?,
+                ),
+            );
         }
 
         Ok(Metrics { metrics })
@@ -27,96 +39,95 @@ impl Metrics {
 
     /// Returns a flattened vector of all metrics inside.
     pub(crate) fn gather(&self) -> Vec<MetricFamily> {
-        let mut ret = vec![];
-        for metric in &self.metrics {
-            ret.push(metric.gather());
-        }
-
-        ret.into_iter().flatten().collect()
+        self.metrics
+            .values()
+            .map(|metric| metric.gather())
+            .flatten()
+            .collect()
     }
 
     /// Returns an instance of Metric with Arc wrapping.
-    /// Returns error when input index is out of range.
-    pub(crate) fn get_metric(&self, index: usize) -> Result<Arc<Metric>> {
-        if index >= self.metrics.len() {
-            bail!("get_metric index out of range: {}", index)
+    pub(crate) fn get_metric(&self, hash: u64) -> Result<Arc<Metric<T>>> {
+        match self.metrics.get(&hash) {
+            Some(metric) => Ok(metric.clone()),
+            None => bail!("get_metric not found: {}", hash),
         }
-        Ok(self.metrics[index].clone())
     }
 }
 
 /// A wrapping structure for Prometheus library
-pub(crate) struct Metric {
+pub(crate) struct Metric<T: Atomic> {
     registry: Registry,
-    consensus_power: Gauge,
-    network_functional: IntGauge,
-    total_validators: IntGauge,
+    metric: GenericGauge<T>,
 }
 
-impl Default for Metric {
+impl<T> Default for Metric<T>
+where
+    T: Atomic,
+{
     fn default() -> Self {
         Metric {
             registry: Registry::new(),
-            consensus_power: Gauge::new(
-                "consensus_power",
-                "percentage of the current consensus network voting power",
-            )
-            .unwrap(),
-            network_functional: IntGauge::new(
+            metric: GenericGauge::new(
                 "network_functional",
                 "subtraction of seconds of the latest block time with the current time",
-            )
-            .unwrap(),
-            total_validators: IntGauge::new(
-                "total_validators",
-                "the total number of validators from the consensus network",
             )
             .unwrap(),
         }
     }
 }
 
-impl Metric {
+impl<T> Metric<T>
+where
+    T: Atomic + 'static + std::fmt::Debug,
+{
     /// Returns a Metric instance.
     ///
     /// Registers a custom registry if not None in the config file,
     /// if None then registers a default registry instead.
-    fn new(cfg: &Option<crate::config::Registry>) -> Result<Self> {
-        let mut m = Metric::default();
-        if let Some(c) = cfg {
-            m.registry = Registry::new_custom(Some(c.prefix.clone()), Some(c.labels.clone()))
-                .with_context(|| format!("new custom registry failed: {:?}", c))?;
-        }
+    fn new(cfg: &crate::config::Target) -> Result<Self> {
+        let registry = match cfg.registry {
+            Some(r) => Registry::new_custom(Some(r.prefix.clone()), Some(r.labels.clone()))
+                .with_context(|| format!("new custom registry failed: {:?}", r))?,
+            None => Registry::new(),
+        };
 
-        m.registry
-            .register(Box::new(m.consensus_power.clone()))
-            .context("register consensus_power failed")?;
-        m.registry
-            .register(Box::new(m.network_functional.clone()))
-            .context("register network_functional failed")?;
-        m.registry
-            .register(Box::new(m.total_validators.clone()))
-            .context("register total_validators failed")?;
+        let metric = match cfg.task_name {
+            TaskName::ConsensusPower => GenericGauge::new(
+                "consensus_power",
+                "percentage of the current consensus network voting power",
+            )
+            .context("new consensus_power failed")?,
+            TaskName::NetworkFunctional => GenericGauge::new(
+                "network_functional",
+                "subtraction of seconds of the latest block time with the current time",
+            )
+            .context("new network_functional failed")?,
+            TaskName::TotalCountOfValidators => GenericGauge::new(
+                "total_count_of_validators",
+                "the total number of validators from the consensus network",
+            )
+            .context("new total_count_of_validators failed")?,
+            TaskName::TotalBalanceOfRelayers => GenericGauge::new(
+                "total_balance_of_relayers",
+                "the total balance of relayers from the specific bridge",
+            )
+            .context("new total_balance_of_relayers failed")?,
+        };
 
-        Ok(m)
+        registry
+            .register(Box::new(metric))
+            .with_context(|| format!("register metric failed: {:?}", metric))?;
+
+        Ok(Metric { registry, metric })
     }
 
     fn gather(&self) -> Vec<MetricFamily> {
         self.registry.gather()
     }
 
-    /// set consensus power Gauge metric.
-    pub(crate) fn set_consensus_power(&self, v: f64) {
-        self.consensus_power.set(v)
-    }
-
-    /// set network functional IntGauge metric.
-    pub(crate) fn set_network_functional(&self, v: i64) {
-        self.network_functional.set(v)
-    }
-
-    /// set total validators IntGauge metric.
-    pub(crate) fn set_total_validators(&self, v: i64) {
-        self.total_validators.set(v)
+    /// set a value for metric
+    pub(crate) fn set(&self, v: <T as Atomic>::T) {
+        self.metric.set(v)
     }
 }
