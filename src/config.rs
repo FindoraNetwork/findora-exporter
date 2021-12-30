@@ -58,12 +58,14 @@ impl Default for Crawler {
                     task_name: TaskName::NetworkFunctional,
                     frequency_ms: 15000,
                     registry: None,
+                    extra_opts: None,
                 },
                 Target {
                     host_addr: "http://127.0.0.1:26657".to_string(),
                     task_name: TaskName::TotalCountOfValidators,
                     frequency_ms: 15000,
                     registry: None,
+                    extra_opts: None,
                 },
             ],
         }
@@ -84,6 +86,11 @@ impl Default for TaskName {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
+pub(crate) enum ExtraOpts {
+    BridgeAddress(String),
+}
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub(crate) struct Target {
@@ -91,6 +98,7 @@ pub(crate) struct Target {
     pub(crate) task_name: TaskName,
     pub(crate) frequency_ms: u64,
     pub(crate) registry: Option<Registry>,
+    pub(crate) extra_opts: Option<ExtraOpts>,
 }
 
 impl Hash for Target {
@@ -161,6 +169,7 @@ mod tests {
             host_addr: "https://somewhere.com/metrics:443".to_string(),
             task_name: TaskName::NetworkFunctional,
             frequency_ms: 1000,
+            extra_opts: None,
             registry: Some(Registry {
                 prefix: "findora_exporter".to_string(),
                 labels,

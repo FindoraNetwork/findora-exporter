@@ -154,6 +154,7 @@ mod tests {
             task_name: config::TaskName::TotalCountOfValidators,
             frequency_ms: 300,
             registry: None,
+            extra_opts: None,
         }];
         let json = serde_json::to_string(&cfg).unwrap();
         fs::write(&cfg_path, &json).unwrap();

@@ -7,7 +7,10 @@ use std::{
     {thread, thread::JoinHandle},
 };
 
-use crate::{config::TaskName, utils::calculate_hash};
+use crate::{
+    config::{ExtraOpts, TaskName},
+    utils::calculate_hash,
+};
 
 use anyhow::{bail, Context, Result};
 use chrono::{DateTime, Utc};
@@ -80,8 +83,10 @@ where
 
 struct Worker<T: Atomic> {
     addr: String,
+    extra_opts: Option<ExtraOpts>,
     freq: Duration,
-    task: Task<T>,
+    task: Arc<Task<T>>,
+    task_thread: Option<thread::JoinHandle<()>>,
     done: Arc<AtomicBool>,
     metric: Arc<crate::metrics::Metric<T>>,
 }
@@ -97,48 +102,60 @@ where
     ) -> Self {
         Worker {
             addr: cfg.host_addr.clone(),
+            extra_opts: cfg.extra_opts.clone(),
             freq: Duration::from_millis(cfg.frequency_ms),
-            task,
+            task: Arc::new(task),
             done: Arc::new(AtomicBool::new(false)),
             metric,
+            task_thread: None,
         }
     }
 
     fn close(&mut self) {
         self.done.store(true, Ordering::SeqCst);
+        if let Some(t) = self.task_thread.take() {
+            let _ = t.join();
+        }
     }
 
-    fn run(&self) {
+    fn run(&mut self) {
         let addr = self.addr.clone();
         let done = self.done.clone();
         let freq = self.freq;
         let metric = self.metric.clone();
+        let task = self.task.clone();
+        let extra_opts = self.extra_opts.clone();
 
-        while !done.load(Ordering::SeqCst) {
-            match (self.task.f)(&addr) {
-                Ok(v) => metric.set(v),
-                Err(e) => error!("{} failed: {:?}", self.task.name, e),
+        self.task_thread = Some(thread::spawn(move || {
+            while !done.load(Ordering::SeqCst) {
+                match (task.f)(&addr, &extra_opts) {
+                    Ok(v) => metric.set(v),
+                    Err(e) => error!("{} failed: {:?}", task.name, e),
+                }
+                thread::sleep(freq);
             }
-            thread::sleep(freq);
-        }
+        }))
     }
 }
 
 struct Task<T: Atomic> {
     name: &'static str,
-    f: fn(&str) -> Result<<T as Atomic>::T>,
+    f: fn(&str, &Option<ExtraOpts>) -> Result<<T as Atomic>::T>,
 }
 
 impl<T> Task<T>
 where
     T: Atomic,
 {
-    fn new(name: &'static str, f: fn(&str) -> Result<<T as Atomic>::T>) -> Self {
+    fn new(
+        name: &'static str,
+        f: fn(&str, &Option<ExtraOpts>) -> Result<<T as Atomic>::T>,
+    ) -> Self {
         Task { name, f }
     }
 }
 
-fn get_consensus_power<N: Number>(addr: &str) -> Result<N> {
+fn get_consensus_power<N: Number>(addr: &str, _opts: &Option<ExtraOpts>) -> Result<N> {
     let data: Value = ureq::get(&format!("{}/dump_consensus_state", addr))
         .call()
         .context("get_consensus_power ureq call failed")?
@@ -173,7 +190,7 @@ fn get_consensus_power<N: Number>(addr: &str) -> Result<N> {
     Ok(N::from_i64(power * 100))
 }
 
-fn get_network_functional<N: Number>(addr: &str) -> Result<N> {
+fn get_network_functional<N: Number>(addr: &str, _opts: &Option<ExtraOpts>) -> Result<N> {
     let data: Value = ureq::get(&format!("{}/status", addr))
         .call()
         .context("get_network_functional ureq call failed")?
@@ -198,7 +215,7 @@ fn get_network_functional<N: Number>(addr: &str) -> Result<N> {
     Ok(N::from_i64((cur_timestamp - latest_block_timestamp).abs()))
 }
 
-fn get_total_validators<N: Number>(addr: &str) -> Result<N> {
+fn get_total_validators<N: Number>(addr: &str, _opts: &Option<ExtraOpts>) -> Result<N> {
     let data: Value = ureq::get(&format!("{}/validators", addr))
         .call()
         .context("get_total_validators ureq call failed")?
@@ -225,9 +242,16 @@ fn get_total_validators<N: Number>(addr: &str) -> Result<N> {
     Ok(N::from_i64(total_validators))
 }
 
-fn get_relayer_balance<N: Number>(addr: &str) -> Result<N> {
+fn get_relayer_balance<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -> Result<N> {
     // asking the bridge for the count of relayers
-    let _count: Value = ureq::post(addr)
+    let bridge_addr = match opts {
+        Some(o) => {
+            let ExtraOpts::BridgeAddress(b) = o;
+            b
+        }
+        None => bail!("get_relayer_balance cannot get bridge address"),
+    };
+    let count: Value = ureq::post(addr)
          .send_json(ureq::json!({
              "method":"eth_call",
              "jsonrpc":"2.0",
@@ -235,13 +259,14 @@ fn get_relayer_balance<N: Number>(addr: &str) -> Result<N> {
              "params":[
                  {
                      "data":"0xca15c873e2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4",
-                     "to":"0x26925046a09d9AEfe6903eae0aD090be06186Bd9"
+                     "to":bridge_addr
                  },
                  "latest"
              ],
          }))?
          .into_json()?;
 
+    println!("########: {}", count);
     Ok(N::from_i64(0))
 }
 
