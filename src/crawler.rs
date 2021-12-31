@@ -281,8 +281,6 @@ fn get_relayer_balance<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -> Resul
         ),
     };
 
-    println!("########: {}", count);
-
     // asking the bridge the releyer addresses
     let mut reqs = vec![];
     for i in 0..count {
@@ -292,7 +290,9 @@ fn get_relayer_balance<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -> Resul
             "id":i, 
             "params":[
                 {
-                    "data":format!("0x9010d07ce2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4{}", format!("{:064}", i)), 
+                    "data":format!(
+                        "0x9010d07ce2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4{}", 
+                        format!("{:064x}", i)), 
                     "to":bridge_addr
                 },
                 "latest"
@@ -318,24 +318,22 @@ fn get_relayer_balance<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -> Resul
         }
 
         let relayer = match relayer.as_str() {
-            Some(v) => format!("0x{}", v.trim_start_matches("0x").trim_start_matches("0")),
+            Some(v) => format!("0x{}", v.trim_start_matches("0x").trim_start_matches('0')),
             None => bail!("get_relayer_balance the relayer result is not a str: {}", d),
         };
 
         relayers.push(relayer);
     }
 
-    println!("{:?}", relayers);
-
     // asking the releyer balances
     let mut reqs = vec![];
-    for i in 0..relayers.len() {
+    for (i, relayer) in relayers.iter().enumerate() {
         reqs.push(ureq::json!({
             "method":"eth_getBalance",
             "jsonrpc":"2.0",
             "id":i,
             "params":[
-                relayers[i],
+                relayer,
                 "latest"
             ]
         }));
@@ -351,7 +349,7 @@ fn get_relayer_balance<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -> Resul
         .as_array()
         .context("get_relayer_balance ask relayer balances as_array failed")?;
 
-    // let mut balances = 0;
+    let mut balances: i64 = 0;
     for d in data {
         let balance = &d["result"];
         if balance.is_null() {
@@ -359,34 +357,20 @@ fn get_relayer_balance<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -> Resul
         }
 
         let balance = match balance.as_str() {
-            Some(v) => u64::from_str_radix(v.trim_start_matches("0x"), 16)
+            Some(v) => u128::from_str_radix(v.trim_start_matches("0x"), 16)
                 .with_context(|| format!("balance parse hex failed: {}", v))?,
             None => bail!("get_relayer_balance the balance result is not a str: {}", d),
         };
 
-        println!("{}", balance);
-        // balances += balance;
+        // the balance came from relayer is like below:
+        // 9989580120000000000
+        // and it is using the 18th number as it's decimal point
+        // 9989580120000000000 = 9.989580120000000000
+        // and the max i64 is 9989580120000000000 a 19th number
+        // so for filling this huge number into i64 we div by 10.
+        balances += (balance.wrapping_div(10u128.pow(10))) as i64;
     }
 
-    Ok(N::from_i64(0))
+    // the real balances needs to div by 8 again
+    Ok(N::from_i64(balances))
 }
-
-// As bridge for releyer count
-// curl -X POST "https://dev-qa01.dev.findora.org:8545" -H "Content-Type: application/json" --data '[
-// {"method":"eth_call", "jsonrpc":"2.0", "id": 2, "params":[{"data":"0xca15c873e2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4", "to":"0x26925046a09d9AEfe6903eae0aD090be06186Bd9"},"latest"]}
-// ]'
-// [{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000003","id":2}]
-//
-// Ask Bridge for releyers address
-// curl -X POST "https://dev-qa01.dev.findora.org:8545" -H "Content-Type: application/json" --data
-// '[
-//      {"method":"eth_call", "jsonrpc":"2.0", "id": 1, "params":[{"data":"0x9010d07ce2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc40000000000000000000000000000000000000000000000000000000000000000", "to":"0x26925046a09d9AEfe6903eae0aD090be06186Bd9"}, "latest"]},
-//      {"method":"eth_call", "jsonrpc":"2.0", "id": 2, "params":[{"data":"0x9010d07ce2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc40000000000000000000000000000000000000000000000000000000000000001", "to":"0x26925046a09d9AEfe6903eae0aD090be06186Bd9"}, "latest"]},
-//      {"method":"eth_call", "jsonrpc":"2.0", "id": 3, "params":[{"data":"0x9010d07ce2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc40000000000000000000000000000000000000000000000000000000000000002", "to":"0x26925046a09d9AEfe6903eae0aD090be06186Bd9"}, "latest"]}
-//  ]'
-//
-// [{"jsonrpc":"2.0","result":"0x0000000000000000000000002bae5160a67ffe0d2dd9114c521dd51689fdb549","id":2}]
-//
-// Ask for the balances
-// curl -X POST "https://dev-qa01.dev.findora.org:8545" -H "Content-Type: application/json" --data '[{"method":"eth_getBalance", "jsonrpc":"2.0", "id": 1, "params":["0x2bae5160a67ffe0d2dd9114c521dd51689fdb549", "latest"]}]'
-// [{"jsonrpc":"2.0","result":"0x8aa21e312be77000","id":1}]

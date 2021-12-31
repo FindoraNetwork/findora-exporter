@@ -1,6 +1,6 @@
 use std::{env, path::Path, sync::Arc};
 
-use prometheus::core::AtomicI64;
+use prometheus::core::AtomicU64;
 
 mod config;
 mod crawler;
@@ -29,7 +29,7 @@ fn run(cfg_path: &str) {
     simple_logger::init_with_level(log_level).expect("simple logger init failed");
 
     let metrics =
-        Arc::new(metrics::Metrics::<AtomicI64>::new(&cfg.crawler).expect("metrics new failed"));
+        Arc::new(metrics::Metrics::<AtomicU64>::new(&cfg.crawler).expect("metrics new failed"));
     let server = server::Server::new(&cfg.server, metrics.clone());
     let crawler = crawler::Crawler::new(&cfg.crawler, metrics);
 
