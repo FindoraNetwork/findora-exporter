@@ -47,8 +47,6 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
         ),
     };
 
-    println!("########: {}", count);
-
     // asking the bridge the releyer addresses
     let mut reqs = vec![];
     for i in 0..count {
@@ -58,7 +56,9 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
             "id":i, 
             "params":[
                 {
-                    "data":format!("0x9010d07ce2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4{}", format!("{:064}", i)), 
+                    "data":format!(
+                        "0x9010d07ce2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4{}", 
+                        format!("{:064x}", i)), 
                     "to":bridge_addr
                 },
                 "latest"
@@ -91,8 +91,6 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
         relayers.push(relayer);
     }
 
-    println!("{:?}", relayers);
-
     // asking the releyer balances
     let mut reqs = vec![];
     for (i, relayer) in relayers.iter().enumerate() {
@@ -117,7 +115,7 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
         .as_array()
         .context("get_relayer_balance ask relayer balances as_array failed")?;
 
-    // let mut balances = 0;
+    let mut balances: i64 = 0;
     for d in data {
         let balance = &d["result"];
         if balance.is_null() {
@@ -125,14 +123,20 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
         }
 
         let balance = match balance.as_str() {
-            Some(v) => u64::from_str_radix(v.trim_start_matches("0x"), 16)
+            Some(v) => u128::from_str_radix(v.trim_start_matches("0x"), 16)
                 .with_context(|| format!("balance parse hex failed: {}", v))?,
             None => bail!("get_relayer_balance the balance result is not a str: {}", d),
         };
 
-        println!("{}", balance);
-        // balances += balance;
+        // the balance came from relayer is like below:
+        // 9989580120000000000
+        // and it is using the 18th number as it's decimal point
+        // 9989580120000000000 = 9.989580120000000000
+        // and the max i64 is 9989580120000000000 a 19th number
+        // so for filling this huge number into i64 we div by 10.
+        balances += (balance.wrapping_div(10u128.pow(10))) as i64;
     }
 
-    Ok(N::from_i64(0))
+    // the real balances needs to div by 8 again
+    Ok(N::from_i64(balances))
 }
