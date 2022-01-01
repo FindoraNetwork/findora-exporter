@@ -6,6 +6,7 @@ mod config;
 mod crawler;
 mod metrics;
 mod server;
+mod tasks;
 mod utils;
 
 fn main() {
