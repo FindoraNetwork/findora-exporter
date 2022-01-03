@@ -11,11 +11,12 @@ Findora is using [tendermint] for its own consensus network. tendermint already 
 
 This exporter has below custom metrics right now!
 
-| name | type | help |
-| - | :-: | :-: |
-| consensus_power | Generic Gauge | percentage of the current consensus network voting power |
-| network_functional | Int Gauge | subtraction of seconds of the latest block time with the current time |
-| total_validators | Int Gauge | the total number of validators from the consensus network |
+| name | help |
+| - | :-: |
+| consensus_power | percentage of the current consensus network voting power |
+| network_functional | subtraction of seconds of the latest block time with the current time |
+| total_count_of_validators | the total number of validators from the consensus network |
+| total_balance_of_relayers | the total balance value of relayers from the specific bridge |
 
 ## Installation
 
@@ -71,7 +72,7 @@ cargo build --release
 ### Default Configuration Behavior
 
 * listening `127.0.0.1:9090` address for Prometheus scraping
-* crawling `http://127.0.0.1:26657` every 15 seconds
+* crawling `http://127.0.0.1:26657` and doing task `NetworkFunctional` every 15 seconds
 * displaying `trace` level information
 
 ### Specific A Configuration
@@ -87,17 +88,19 @@ for example
         "targets": [
             {
                 "host_addr": "https://prod-testnet.prod.findora.org:26657",
-		"registry": {
-                    "prefix": "findora_exporter",
-		    "env": "prod-testnet"
-		}
-            },
-            {
+				"task_name": "ConsensusPower",
+				"registry": {
+        		    "prefix": "findora_exporter",
+				    "env": "prod-testnet"
+				}
+        	},
+			{
                 "host_addr": "https://prod-mainnet.prod.findora.org:26657",
-		"registry": {
-		    "prefix": "findora_exporter",
-		    "env": "prod-mainnet"
-		}
+				"task_name": "TotalBalanceOfRelayers",
+				"registry": {
+				    "prefix": "findora_exporter",
+				    "env": "prod-mainnet"
+				}
             }
         ]
     }

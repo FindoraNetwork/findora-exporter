@@ -52,22 +52,13 @@ pub(crate) struct Crawler {
 impl Default for Crawler {
     fn default() -> Self {
         Crawler {
-            targets: vec![
-                Target {
-                    host_addr: "http://127.0.0.1:26657".to_string(),
-                    task_name: TaskName::NetworkFunctional,
-                    frequency_ms: 15000,
-                    registry: None,
-                    extra_opts: None,
-                },
-                Target {
-                    host_addr: "http://127.0.0.1:26657".to_string(),
-                    task_name: TaskName::TotalCountOfValidators,
-                    frequency_ms: 15000,
-                    registry: None,
-                    extra_opts: None,
-                },
-            ],
+            targets: vec![Target {
+                host_addr: "http://127.0.0.1:26657".to_string(),
+                task_name: TaskName::NetworkFunctional,
+                frequency_ms: 15000,
+                registry: None,
+                extra_opts: None,
+            }],
         }
     }
 }
