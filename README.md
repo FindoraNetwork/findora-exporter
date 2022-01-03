@@ -16,7 +16,7 @@ This exporter has below custom metrics right now!
 | ConsensusPower | percentage of the current consensus network voting power |
 | NetworkFunctional | subtraction of seconds of the latest block time with the current time |
 | TotalCountOfValidators | the total number of validators from the consensus network |
-| TotalBalanceOfRelayers | the total balance value of relayers from the specific bridge |
+| TotalBalanceOfRelayers | the total balance value of relayers from the specific bridge ( divided the metric value by 10 to the power of 8 ) |
 
 ## Installation
 
