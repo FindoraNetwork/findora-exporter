@@ -32,9 +32,21 @@ pub(crate) fn consensus_power<N: Number>(addr: &str, _opts: &Option<ExtraOpts>) 
         None => bail!("power cannot find = symbol"),
     };
 
-    let power: i64 = power
+    let power: f64 = power
         .parse()
-        .with_context(|| format!("power:{} convert to i64 failed", power))?;
+        .with_context(|| format!("power:{} convert to f64 failed", power))?;
 
-    Ok(N::from_i64(power * 100))
+    Ok(N::from_i64((power * 100.0f64) as i64))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_task_consensus_power() {
+        assert!(
+            consensus_power::<u64>("https://prod-mainnet.prod.findora.org:26657", &None).is_ok()
+        )
+    }
 }
