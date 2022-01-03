@@ -34,3 +34,17 @@ pub(crate) fn total_count_of_validators<N: Number>(
 
     Ok(N::from_i64(total_validators))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_task_consensus_power() {
+        assert!(total_count_of_validators::<u64>(
+            "https://prod-mainnet.prod.findora.org:26657",
+            &None
+        )
+        .is_ok())
+    }
+}
