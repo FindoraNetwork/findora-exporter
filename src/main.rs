@@ -133,7 +133,7 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn test_parse_command_help() {
+    fn test_parse_command() {
         assert_eq!(
             Command::ConfigPath(config::DEFAULT_CONFIG_PATH.to_string()),
             parse_command()

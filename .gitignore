@@ -11,3 +11,4 @@ Cargo.lock
 
 # the config file
 config.json
+*.json
