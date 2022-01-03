@@ -30,3 +30,15 @@ pub(crate) fn network_functional<N: Number>(addr: &str, _opts: &Option<ExtraOpts
 
     Ok(N::from_i64((cur_timestamp - latest_block_timestamp).abs()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_task_consensus_power() {
+        assert!(
+            network_functional::<u64>("https://prod-mainnet.prod.findora.org:26657", &None).is_ok()
+        )
+    }
+}
