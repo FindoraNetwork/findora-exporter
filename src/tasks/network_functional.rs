@@ -36,7 +36,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_task_consensus_power() {
+    fn test_task_network_functional() {
         assert!(
             network_functional::<u64>("https://prod-mainnet.prod.findora.org:26657", &None).is_ok()
         )

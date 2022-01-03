@@ -40,7 +40,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_task_consensus_power() {
+    fn test_task_total_count_of_validators() {
         assert!(total_count_of_validators::<u64>(
             "https://prod-mainnet.prod.findora.org:26657",
             &None

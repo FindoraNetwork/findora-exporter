@@ -140,3 +140,18 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
     // the real balances needs to div by 8 again
     Ok(N::from_i64(balances))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_task_total_balance_of_relayers() {
+        // we only enable this feature on dev qa01 net currently
+        // TODO: change to use prod mainnet when it is ready
+        assert!(
+            total_balance_of_relayers::<u64>("https://dev-qa01.dev.findora.org:8668", &None)
+                .is_ok()
+        )
+    }
+}
