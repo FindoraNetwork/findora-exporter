@@ -12,11 +12,11 @@ Findora is using [tendermint] for its own consensus network. tendermint already 
 This exporter has below custom metrics right now!
 
 | name | help |
-| - | :-: |
-| consensus_power | percentage of the current consensus network voting power |
-| network_functional | subtraction of seconds of the latest block time with the current time |
-| total_count_of_validators | the total number of validators from the consensus network |
-| total_balance_of_relayers | the total balance value of relayers from the specific bridge |
+| :-: | :-: |
+| ConsensusPower | percentage of the current consensus network voting power |
+| NetworkFunctional | subtraction of seconds of the latest block time with the current time |
+| TotalCountOfValidators | the total number of validators from the consensus network |
+| TotalBalanceOfRelayers | the total balance value of relayers from the specific bridge |
 
 ## Installation
 
@@ -82,25 +82,27 @@ for example
 {
     "log_level": "error",
     "server": {
-	"listen_addr": "127.0.0.1:8080"
+        "listen_addr": "127.0.0.1:8080"
     },
     "crawler": {
         "targets": [
             {
                 "host_addr": "https://prod-testnet.prod.findora.org:26657",
-				"task_name": "ConsensusPower",
-				"registry": {
-        		    "prefix": "findora_exporter",
-				    "env": "prod-testnet"
-				}
-        	},
-			{
+                "task_name": "ConsensusPower",
+                "registry": 
+                    {
+                        "prefix": "findora_exporter",
+                        "env": "prod-testnet"
+                    }
+            },
+            {
                 "host_addr": "https://prod-mainnet.prod.findora.org:26657",
-				"task_name": "TotalBalanceOfRelayers",
-				"registry": {
-				    "prefix": "findora_exporter",
-				    "env": "prod-mainnet"
-				}
+                "task_name": "NetworkFunctional",
+                "registry": 
+                    {
+                        "prefix": "findora_exporter",
+                        "env": "prod-mainnet"
+                    }
             }
         ]
     }
