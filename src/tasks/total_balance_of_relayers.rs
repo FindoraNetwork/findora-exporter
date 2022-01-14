@@ -146,12 +146,10 @@ mod tests {
 
     #[test]
     fn test_task_total_balance_of_relayers() {
-        // we only enable this feature on dev qa01 net currently
-        // TODO: change to use prod mainnet when it is ready
         assert!(total_balance_of_relayers::<u64>(
-            "https://dev-qa01.dev.findora.org:8545",
+            "https://data-seed-prebsc-1-s1.binance.org:8545",
             &Some(ExtraOpts::BridgeAddress(
-                "0x26925046a09d9AEfe6903eae0aD090be06186Bd9".to_string()
+                "0xD609931ec1c7a7F6ad59A69fede03fB067Af997c".to_string()
             ))
         )
         .is_ok())
