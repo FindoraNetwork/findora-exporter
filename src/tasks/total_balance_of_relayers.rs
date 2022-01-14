@@ -57,8 +57,7 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
             "params":[
                 {
                     "data":format!(
-                        "0x9010d07ce2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4{}", 
-                        format!("{:064x}", i)), 
+                        "0x9010d07ce2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4{:064x}", i), 
                     "to":bridge_addr
                 },
                 "latest"
