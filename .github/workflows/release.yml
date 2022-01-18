@@ -118,7 +118,7 @@ jobs:
           asset_content_type: application/x-deb
   
   publish-image:
-    name: Publish releases
+    name: Publish image releases
     needs: check
     runs-on: ubuntu-latest
     steps:
