@@ -12,11 +12,12 @@ RUN rustup target add $(cat /rust_targets)
 COPY . ./exporter
 WORKDIR /exporter
 RUN cargo build --release --target $(cat /rust_targets)
-RUN strip --strip-all target/release/findora-exporter
+RUN cp target/$(cat /rust_targets)/release/findora-exporter ./
+RUN strip --strip-all ./findora-exporter
 
 FROM docker.io/busybox:latest
 
-COPY --from=builder /exporter/target/release/findora-exporter /exporter
+COPY --from=builder /exporter/findora-exporter /exporter
 
 EXPOSE 9090
 ENTRYPOINT ["/exporter", "--config", "/config.json"]
