@@ -36,10 +36,14 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    # TODO:
+    # there has an issue of rust 2022-01-15 nightly version toolchain
+    # https://github.com/taiki-e/cargo-llvm-cov/issues/128
+    # so do a work around here to tag older nightly version
     - uses: actions-rs/toolchain@v1
       with:
           profile: minimal
-          toolchain: nightly
+          toolchain: nightly-2022-01-14
           override: true
           components: llvm-tools-preview
 
