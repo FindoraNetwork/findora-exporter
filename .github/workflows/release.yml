@@ -144,7 +144,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v3
         with:
-          images: FindoraNetwork/findora-exporter
+          images: ghcr.io/FindoraNetwork/findora-exporter
           tags: |
             type=raw,value={{tag}}
             type=raw,value=latest
