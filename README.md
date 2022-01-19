@@ -54,6 +54,14 @@ Extracting it by below command
 tar -xzf findora-exporter-x.x.x-x86_64-unknown-linux-musl.tar.gz
 ```
 
+### From Container Runner
+
+```bash
+# docker is also the same!
+podman pull ghcr.io/findoranetwork/findora-exporter:latest
+podman run --rm -v ./config.json:/config.json -p 3000:3000 ghcr.io/findoranetwork/findora-exporter --config /config.json 
+```
+
 ### From Source Code
 
 Installing [Rust]
