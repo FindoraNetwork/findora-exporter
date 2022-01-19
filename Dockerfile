@@ -20,4 +20,4 @@ FROM docker.io/busybox:latest
 COPY --from=builder /exporter/findora-exporter /exporter
 
 EXPOSE 9090
-ENTRYPOINT ["/exporter", "--config", "/config.json"]
+ENTRYPOINT ["/exporter"]
