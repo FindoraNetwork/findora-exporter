@@ -54,6 +54,9 @@ where
                     "get_relayer_balance",
                     crate::tasks::total_balance_of_relayers,
                 ),
+                TaskName::BridgedBalance => {
+                    Task::new("bridged_balance", crate::tasks::bridged_balance)
+                }
             };
 
             workers.push(Arc::new(RwLock::new(Worker::new(target, metric, task))));
