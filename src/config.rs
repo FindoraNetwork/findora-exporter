@@ -70,7 +70,7 @@ pub(crate) enum TaskName {
     TotalCountOfValidators,
     TotalBalanceOfRelayers,
     BridgedBalance,
-    //    BridgedSupply,
+    BridgedSupply,
 }
 
 impl Default for TaskName {
@@ -87,6 +87,9 @@ pub(crate) enum ExtraOpts {
     },
     BridgedBalance {
         erc20handler_address: String,
+        token_address: String,
+    },
+    BridgedSupply {
         token_address: String,
     },
 }

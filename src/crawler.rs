@@ -57,6 +57,9 @@ where
                 TaskName::BridgedBalance => {
                     Task::new("bridged_balance", crate::tasks::bridged_balance)
                 }
+                TaskName::BridgedSupply => {
+                    Task::new("bridged_supply", crate::tasks::bridged_supply)
+                }
             };
 
             workers.push(Arc::new(RwLock::new(Worker::new(target, metric, task))));

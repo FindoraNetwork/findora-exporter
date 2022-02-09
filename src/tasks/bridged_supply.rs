@@ -5,17 +5,11 @@ use anyhow::{bail, Context, Result};
 use prometheus::core::Number;
 use serde_json::Value;
 
-pub(crate) fn bridged_balance<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -> Result<N> {
-    let (handler_addr, token_addr) = match opts {
-        Some(ExtraOpts::BridgedBalance {
-            erc20handler_address,
-            token_address,
-        }) => (erc20handler_address, token_address),
+pub(crate) fn bridged_supply<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -> Result<N> {
+    let token_addr = match opts {
+        Some(ExtraOpts::BridgedSupply { token_address }) => token_address,
         _ => {
-            bail!(
-                "expecting extra_opts: erc20handler_address and token_address, addr:{:?}",
-                addr
-            )
+            bail!("expecting extra_opts: token_address, addr:{:?}", addr)
         }
     };
 
@@ -26,11 +20,11 @@ pub(crate) fn bridged_balance<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -
             "id":0,
             "params":[
                 {
-                    // keccak256("balanceOf(address)")[:8] = "70a08231"
-                    // https://eips.ethereum.org/EIPS/eip-20#balanceOf
+                    // keccak256("totalSupply()")[:8] = "18160ddd"
+                    // https://eips.ethereum.org/EIPS/eip-20#totalSupply
                     //
-                    // 0x + function signature(8) + padding(erc20Handler)(64)
-                    "data":format!("0x70a08231{:0>64}", handler_addr.trim_start_matches("0x")),
+                    // 0x + function signature(8)
+                    "data":"0x18160ddd",
                     "to":token_addr
                 },
                 "latest"
@@ -38,14 +32,14 @@ pub(crate) fn bridged_balance<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -
         }))
         .with_context(|| {
             format!(
-                "requesting balanceOf ureq call failed, addr:{:?}, opts:{:?}",
+                "requesting totalSupply ureq call failed, addr:{:?}, opts:{:?}",
                 addr, opts
             )
         })?
         .into_json()
         .with_context(|| {
             format!(
-                "requesting balanceOf ureq json failed, addr:{:?}, opts:{:?}",
+                "requesting totalSupply ureq json failed, addr:{:?}, opts:{:?}",
                 addr, opts
             )
         })?;
@@ -91,12 +85,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_bridged_balance() {
-        assert!(bridged_balance::<u64>(
-            "https://prod-testnet.prod.findora.org:8545",
-            &Some(ExtraOpts::BridgedBalance {
-                erc20handler_address: "0xe2b65e624bBb5513fF805d225258D7A92b0f62C4".to_string(),
-                token_address: "0x6ce8da28e2f864420840cf74474eff5fd80e65b8".to_string(),
+    fn test_bridged_supply() {
+        assert!(bridged_supply::<u64>(
+            "https://data-seed-prebsc-1-s1.binance.org:8545",
+            &Some(ExtraOpts::BridgedSupply {
+                token_address: "0xbbb9d97e925922EDFcBc9B7dE0E8e1092383D096".to_string(),
             }),
         )
         .is_ok())
