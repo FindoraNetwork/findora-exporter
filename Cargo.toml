@@ -13,7 +13,7 @@ findora-exporter is a Prometheus custom exporter for exposing custom metrics.
 """
 
 [dependencies]
-simple_logger = { version = "1.15", default-features = false, features = ["threads"] }
+simple_logger = { version = "2.1", default-features = false, features = ["threads"] }
 log = "0.4"
 anyhow = "1.0"
 prometheus = "0.13"
