@@ -17,6 +17,8 @@ This exporter has below custom metrics right now!
 | NetworkFunctional | subtraction of seconds of the latest block time with the current time |
 | TotalCountOfValidators | the total number of validators from the consensus network |
 | TotalBalanceOfRelayers | the total balance value of relayers from the specific bridge ( this metric displays with 8 digits as the fractional part so need to divide the metric value by 10 to the power of 8 ) |
+| BridgedBalance | the token balance of reserving safe on source chain |
+| BridgedSupply | the token supply total minted on the destination chain |
 
 ## Installation
 

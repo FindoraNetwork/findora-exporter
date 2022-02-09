@@ -18,20 +18,23 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
         None => bail!("get_relayer_balance cannot get bridge address"),
     };
     let data: Value = ureq::post(addr)
-         .send_json(ureq::json!({
-             "method":"eth_call",
-             "jsonrpc":"2.0",
-             "id":0,
-             "params":[
-                 {
-                     // the keccak-256 hashed EVM method
-                     "data":"0xca15c873e2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4",
-                     "to":bridge_addr
-                 },
-                 "latest"
-             ],
-         })).context("get_relayer_balance ask relayer count ureq call failed")?
-         .into_json().context("get_relayer_balance ask relayer count ureq json failed")?;
+        .send_json(ureq::json!({
+            "method":"eth_call",
+            "jsonrpc":"2.0",
+            "id":0,
+            "params":[
+                {
+                    // keccak256("_totalRelayers()")[:8] = "0x802aabe8"
+                    // https://github.com/ChainSafe/chainbridge-solidity/blob/master/contracts/Bridge.sol#L314
+                    "data":"0x802aabe8",
+                    "to":bridge_addr
+                },
+                "latest"
+            ],
+        }))
+        .context("get_relayer_balance ask relayer count ureq call failed")?
+        .into_json()
+        .context("get_relayer_balance ask relayer count ureq json failed")?;
 
     let count = &data["result"];
     if count.is_null() {
@@ -56,6 +59,10 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
             "id":i, 
             "params":[
                 {
+                    // keccak256("getRoleMember(bytes32,uint256)")[:8] = "9010d07c"
+                    // https://github.com/ChainSafe/chainbridge-solidity/blob/master/contracts/utils/AccessControl.sol#L104
+                    // keccak256("RELAYER_ROLE") = "e2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4"
+                    // https://github.com/ChainSafe/chainbridge-solidity/blob/master/contracts/Bridge.sol#L73
                     "data":format!(
                         "0x9010d07ce2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4{:064x}", i), 
                     "to":bridge_addr
