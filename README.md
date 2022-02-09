@@ -40,6 +40,7 @@ After that
 * An executable binary will be put into `/usr/local/bin/findora-exporter`
 * A systemd `findora-exporter.service` will be loaded
 * expecting a config file at `/etc/prometheus/findora_exporter_config.json`
+* expecting a user named `ubuntu`
 
 ```bash
 $ systemctl status findora-exporter.service
