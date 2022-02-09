@@ -11,7 +11,7 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
 ) -> Result<N> {
     let bridge_addr = match opts {
         Some(ExtraOpts::TotalBalanceOfRelayers { bridge_address }) => bridge_address,
-        _ => bail!("total_balance_of_relayers expecting extra_opts: bridge_address"),
+        _ => bail!("expecting extra_opts: bridge_address, addr:{:?}", addr),
     };
 
     // asking the bridge for the count of relayers
@@ -32,21 +32,41 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
                 "latest"
             ],
         }))
-        .context("total_balance_of_relayers ask relayer count ureq call failed")?
+        .with_context(|| {
+            format!(
+                "ask relayer count ureq call failed, addr:{:?}, opts:{:?}",
+                addr, opts
+            )
+        })?
         .into_json()
-        .context("total_balance_of_relayers ask relayer count ureq json failed")?;
+        .with_context(|| {
+            format!(
+                "ask relayer count ureq json failed, addr:{:?}, opts:{:?}",
+                addr, opts
+            )
+        })?;
 
     let count = &data["result"];
     if count.is_null() {
-        bail!("total_balance_of_relayers the relayer count is null")
+        bail!(
+            "the relayer count is null, addr:{:?}, opts:{:?}",
+            addr,
+            opts
+        )
     }
 
     let count = match count.as_str() {
-        Some(v) => usize::from_str_radix(v.trim_start_matches("0x"), 16)
-            .with_context(|| format!("count parse hex failed: {}", v))?,
+        Some(v) => usize::from_str_radix(v.trim_start_matches("0x"), 16).with_context(|| {
+            format!(
+                "count parse hex failed: {}, addr:{:?}, opts:{:?}",
+                v, addr, opts
+            )
+        })?,
         None => bail!(
-            "total_balance_of_relayers the relayer count is not a str: {}",
-            count
+            "the relayer count is not a str: {}, addr:{:?}, opts:{:?}",
+            count,
+            addr,
+            opts
         ),
     };
 
@@ -77,29 +97,46 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
 
     let data: Value = ureq::post(addr)
         .send_json(serde_json::Value::Array(reqs))
-        .context("total_balance_of_relayers ask relayer addresses ureq call failed")?
+        .with_context(|| {
+            format!(
+                "ask relayer addresses ureq call failed, addr:{:?}, opts:{:?}",
+                addr, opts
+            )
+        })?
         .into_json()
-        .context("total_balance_of_relayers ask relayer addresses ureq json failed")?;
+        .with_context(|| {
+            format!(
+                "ask relayer addresses ureq json failed, addr:{:?}, opts:{:?}",
+                addr, opts
+            )
+        })?;
 
-    let data = data
-        .as_array()
-        .context("total_balance_of_relayers ask relayer addresses as_array failed")?;
+    let data = data.as_array().with_context(|| {
+        format!(
+            "ask relayer addresses as_array failed, addr:{:?}, opts:{:?}",
+            addr, opts
+        )
+    })?;
 
     let mut relayers = vec![];
     for d in data {
         let relayer = &d["result"];
         if relayer.is_null() {
             bail!(
-                "total_balance_of_relayers the relayer result is null: {}",
-                d
+                "the relayer result is null: {}, addr:{:?}, opts:{:?}",
+                d,
+                addr,
+                opts
             )
         }
 
         let relayer = match relayer.as_str() {
             Some(v) => format!("0x{}", v.trim_start_matches("0x").trim_start_matches('0')),
             None => bail!(
-                "total_balance_of_relayers the relayer result is not a str: {}",
-                d
+                "the relayer result is not a str: {}, addr:{:?}, opts:{:?}",
+                d,
+                addr,
+                opts
             ),
         };
 
@@ -122,30 +159,51 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
 
     let data: Value = ureq::post(addr)
         .send_json(serde_json::Value::Array(reqs))
-        .context("total_balance_of_relayers ask relayer balances ureq call failed")?
+        .with_context(|| {
+            format!(
+                "ask relayer balances ureq call failed, addr:{:?}, opts:{:?}",
+                addr, opts
+            )
+        })?
         .into_json()
-        .context("total_balance_of_relayers ask relayer balances ureq json failed")?;
+        .with_context(|| {
+            format!(
+                "ask relayer balances ureq json failed, addr:{:?}, opts:{:?}",
+                addr, opts
+            )
+        })?;
 
-    let data = data
-        .as_array()
-        .context("total_balance_of_relayers ask relayer balances as_array failed")?;
+    let data = data.as_array().with_context(|| {
+        format!(
+            "ask relayer balances as_array failed, addr:{:?}, opts:{:?}",
+            addr, opts
+        )
+    })?;
 
     let mut balances: i64 = 0;
     for d in data {
         let balance = &d["result"];
         if balance.is_null() {
             bail!(
-                "total_balance_of_relayers the balance result is null: {}",
-                d
+                "the balance result is null: {}, addr:{:?}, opts:{:?}",
+                d,
+                addr,
+                opts
             )
         }
 
         let balance = match balance.as_str() {
-            Some(v) => u128::from_str_radix(v.trim_start_matches("0x"), 16)
-                .with_context(|| format!("balance parse hex failed: {}", v))?,
+            Some(v) => u128::from_str_radix(v.trim_start_matches("0x"), 16).with_context(|| {
+                format!(
+                    "balance parse hex failed: {}, addr:{:?}, opts:{:?}",
+                    v, addr, opts
+                )
+            })?,
             None => bail!(
-                "total_balance_of_relayers the balance result is not a str: {}",
-                d
+                "the balance result is not a str: {}, addr:{:?}, opts:{:?}",
+                d,
+                addr,
+                opts
             ),
         };
 

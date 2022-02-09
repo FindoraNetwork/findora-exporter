@@ -51,7 +51,7 @@ where
                     crate::tasks::total_count_of_validators,
                 ),
                 TaskName::TotalBalanceOfRelayers => Task::new(
-                    "get_relayer_balance",
+                    "total_balance_of_relayers",
                     crate::tasks::total_balance_of_relayers,
                 ),
                 TaskName::BridgedBalance => {

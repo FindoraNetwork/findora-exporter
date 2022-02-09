@@ -12,7 +12,10 @@ pub(crate) fn bridged_balance<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -
             token_address,
         }) => (erc20handler_address, token_address),
         _ => {
-            bail!("bridged_balance expecting extra_opts: erc20handler_address and token_address")
+            bail!(
+                "expecting extra_opts: erc20handler_address and token_address, addr:{:?}",
+                addr
+            )
         }
     };
 
@@ -33,13 +36,23 @@ pub(crate) fn bridged_balance<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -
                 "latest"
             ],
         }))
-        .context("bridged_balance requesting balanceOf ureq call failed")?
+        .with_context(|| {
+            format!(
+                "requesting balanceOf ureq call failed, addr:{:?}, opts:{:?}",
+                addr, opts
+            )
+        })?
         .into_json()
-        .context("bridged_balance requesting balanceOf ureq json failed")?;
+        .with_context(|| {
+            format!(
+                "requesting balanceOf ureq json failed, addr:{:?}, opts:{:?}",
+                addr, opts
+            )
+        })?;
 
     let balance = &data["result"];
     if balance.is_null() {
-        bail!("bridged_balance the balance is null")
+        bail!("the balance is null, addr:{:?}, opts:{:?}", addr, opts)
     }
 
     let balance = match balance.as_str() {
@@ -48,12 +61,18 @@ pub(crate) fn bridged_balance<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -
             if b.is_empty() {
                 b = "0"
             };
-            i64::from_str_radix(b, 16)
-                .with_context(|| format!("balance parse hex failed: {}", v))?
+            i64::from_str_radix(b, 16).with_context(|| {
+                format!(
+                    "balance parse hex failed: {}, addr:{:?}, opts:{:?}",
+                    v, addr, opts
+                )
+            })?
         }
         None => bail!(
-            "bridged_balance the balance result is not a str: {}",
-            balance
+            "the balance result is not a str: {}, addr:{:?}, opts:{:?}",
+            balance,
+            addr,
+            opts
         ),
     };
 
