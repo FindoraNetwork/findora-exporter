@@ -22,6 +22,17 @@ jobs:
         toolchain: stable
         components: rustfmt, clippy 
 
+    - name: Using cache to speed up
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-stable-cargo-${{ hashFiles('**/Cargo.lock') }}
+
     - name: Check Formatting
       run: cargo fmt --all -- --check 
 
@@ -36,14 +47,10 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    # TODO:
-    # there has an issue of rust 2022-01-15 nightly version toolchain
-    # https://github.com/taiki-e/cargo-llvm-cov/issues/128
-    # so do a work around here to tag older nightly version
     - uses: actions-rs/toolchain@v1
       with:
           profile: minimal
-          toolchain: nightly-2022-01-14
+          toolchain: nightly
           override: true
           components: llvm-tools-preview
 
@@ -51,6 +58,17 @@ jobs:
       uses: taiki-e/install-action@v1
       with:
         tool: cargo-llvm-cov
+
+    - name: Using cache to speed up
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-nightly-cargo-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Generate code coverage
       run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info

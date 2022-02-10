@@ -11,24 +11,24 @@ pub(crate) fn total_count_of_validators<N: Number>(
 ) -> Result<N> {
     let data: Value = ureq::get(&format!("{}/validators", addr))
         .call()
-        .context("get_total_validators ureq call failed")?
+        .with_context(|| format!("ureq call failed, addr:{:?}", addr))?
         .into_json()
-        .context("get_total_validators ureq json failed")?;
+        .with_context(|| format!("ureq json failed, addr:{:?}", addr))?;
 
     let total_validators = &data["result"]["total"];
     if total_validators.is_null() {
-        bail!("total_validators is null")
+        bail!("total_validators is null, addr:{:?}", addr)
     }
 
     let total_validators = match total_validators.as_str() {
         Some(v) => v.to_string(),
-        None => bail!("total_validators is not a str"),
+        None => bail!("total_validators is not a str, addr:{:?}", addr),
     };
 
     let total_validators: i64 = total_validators.parse().with_context(|| {
         format!(
-            "total_validators:{} convert to i64 failed",
-            total_validators
+            "total_validators:{} convert to i64 failed, addr:{:?}",
+            total_validators, addr,
         )
     })?;
 

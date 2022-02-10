@@ -6,3 +6,7 @@ mod total_count_of_validators;
 pub(crate) use total_count_of_validators::total_count_of_validators;
 mod total_balance_of_relayers;
 pub(crate) use total_balance_of_relayers::total_balance_of_relayers;
+mod bridged_balance;
+pub(crate) use bridged_balance::bridged_balance;
+mod bridged_supply;
+pub(crate) use bridged_supply::bridged_supply;

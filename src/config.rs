@@ -69,6 +69,8 @@ pub(crate) enum TaskName {
     NetworkFunctional,
     TotalCountOfValidators,
     TotalBalanceOfRelayers,
+    BridgedBalance,
+    BridgedSupply,
 }
 
 impl Default for TaskName {
@@ -78,8 +80,18 @@ impl Default for TaskName {
 }
 
 #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(untagged)]
 pub(crate) enum ExtraOpts {
-    BridgeAddress(String),
+    TotalBalanceOfRelayers {
+        bridge_address: String,
+    },
+    BridgedBalance {
+        erc20handler_address: String,
+        token_address: String,
+    },
+    BridgedSupply {
+        token_address: String,
+    },
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]

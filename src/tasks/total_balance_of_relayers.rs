@@ -9,41 +9,64 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
     addr: &str,
     opts: &Option<ExtraOpts>,
 ) -> Result<N> {
-    // asking the bridge for the count of relayers
     let bridge_addr = match opts {
-        Some(o) => {
-            let ExtraOpts::BridgeAddress(b) = o;
-            b
-        }
-        None => bail!("get_relayer_balance cannot get bridge address"),
+        Some(ExtraOpts::TotalBalanceOfRelayers { bridge_address }) => bridge_address,
+        _ => bail!("expecting extra_opts: bridge_address, addr:{:?}", addr),
     };
+
+    // asking the bridge for the count of relayers
     let data: Value = ureq::post(addr)
-         .send_json(ureq::json!({
-             "method":"eth_call",
-             "jsonrpc":"2.0",
-             "id":0,
-             "params":[
-                 {
-                     // the keccak-256 hashed EVM method
-                     "data":"0xca15c873e2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4",
-                     "to":bridge_addr
-                 },
-                 "latest"
-             ],
-         })).context("get_relayer_balance ask relayer count ureq call failed")?
-         .into_json().context("get_relayer_balance ask relayer count ureq json failed")?;
+        .send_json(ureq::json!({
+            "method":"eth_call",
+            "jsonrpc":"2.0",
+            "id":0,
+            "params":[
+                {
+                    // keccak256("_totalRelayers()")[:8] = "0x802aabe8"
+                    // https://github.com/ChainSafe/chainbridge-solidity/blob/master/contracts/Bridge.sol#L314
+                    //
+                    // no params so only function signature
+                    "data":"0x802aabe8",
+                    "to":bridge_addr
+                },
+                "latest"
+            ],
+        }))
+        .with_context(|| {
+            format!(
+                "ask relayer count ureq call failed, addr:{:?}, opts:{:?}",
+                addr, opts
+            )
+        })?
+        .into_json()
+        .with_context(|| {
+            format!(
+                "ask relayer count ureq json failed, addr:{:?}, opts:{:?}",
+                addr, opts
+            )
+        })?;
 
     let count = &data["result"];
     if count.is_null() {
-        bail!("get_relayer_balance the relayer count is null")
+        bail!(
+            "the relayer count is null, addr:{:?}, opts:{:?}",
+            addr,
+            opts
+        )
     }
 
     let count = match count.as_str() {
-        Some(v) => usize::from_str_radix(v.trim_start_matches("0x"), 16)
-            .with_context(|| format!("count parse hex failed: {}", v))?,
+        Some(v) => usize::from_str_radix(v.trim_start_matches("0x"), 16).with_context(|| {
+            format!(
+                "count parse hex failed: {}, addr:{:?}, opts:{:?}",
+                v, addr, opts
+            )
+        })?,
         None => bail!(
-            "get_relayer_balance the relayer count is not a str: {}",
-            count
+            "the relayer count is not a str: {}, addr:{:?}, opts:{:?}",
+            count,
+            addr,
+            opts
         ),
     };
 
@@ -56,6 +79,13 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
             "id":i, 
             "params":[
                 {
+                    // keccak256("getRoleMember(bytes32,uint256)")[:8] = "9010d07c"
+                    // https://github.com/ChainSafe/chainbridge-solidity/blob/master/contracts/utils/AccessControl.sol#L104
+                    //
+                    // keccak256("RELAYER_ROLE") = "e2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4"
+                    // https://github.com/ChainSafe/chainbridge-solidity/blob/master/contracts/Bridge.sol#L73
+                    //
+                    // function signature(8) + padding(RELAYER_ROLE)(64) + padding(index)(64)
                     "data":format!(
                         "0x9010d07ce2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4{:064x}", i), 
                     "to":bridge_addr
@@ -67,24 +97,47 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
 
     let data: Value = ureq::post(addr)
         .send_json(serde_json::Value::Array(reqs))
-        .context("get_relayer_balance ask relayer addresses ureq call failed")?
+        .with_context(|| {
+            format!(
+                "ask relayer addresses ureq call failed, addr:{:?}, opts:{:?}",
+                addr, opts
+            )
+        })?
         .into_json()
-        .context("get_relayer_balance ask relayer addresses ureq json failed")?;
+        .with_context(|| {
+            format!(
+                "ask relayer addresses ureq json failed, addr:{:?}, opts:{:?}",
+                addr, opts
+            )
+        })?;
 
-    let data = data
-        .as_array()
-        .context("get_relayer_balance ask relayer addresses as_array failed")?;
+    let data = data.as_array().with_context(|| {
+        format!(
+            "ask relayer addresses as_array failed, addr:{:?}, opts:{:?}",
+            addr, opts
+        )
+    })?;
 
     let mut relayers = vec![];
     for d in data {
         let relayer = &d["result"];
         if relayer.is_null() {
-            bail!("get_relayer_balance the relayer result is null: {}", d)
+            bail!(
+                "the relayer result is null: {}, addr:{:?}, opts:{:?}",
+                d,
+                addr,
+                opts
+            )
         }
 
         let relayer = match relayer.as_str() {
             Some(v) => format!("0x{}", v.trim_start_matches("0x").trim_start_matches('0')),
-            None => bail!("get_relayer_balance the relayer result is not a str: {}", d),
+            None => bail!(
+                "the relayer result is not a str: {}, addr:{:?}, opts:{:?}",
+                d,
+                addr,
+                opts
+            ),
         };
 
         relayers.push(relayer);
@@ -106,25 +159,52 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
 
     let data: Value = ureq::post(addr)
         .send_json(serde_json::Value::Array(reqs))
-        .context("get_relayer_balance ask relayer balances ureq call failed")?
+        .with_context(|| {
+            format!(
+                "ask relayer balances ureq call failed, addr:{:?}, opts:{:?}",
+                addr, opts
+            )
+        })?
         .into_json()
-        .context("get_relayer_balance ask relayer balances ureq json failed")?;
+        .with_context(|| {
+            format!(
+                "ask relayer balances ureq json failed, addr:{:?}, opts:{:?}",
+                addr, opts
+            )
+        })?;
 
-    let data = data
-        .as_array()
-        .context("get_relayer_balance ask relayer balances as_array failed")?;
+    let data = data.as_array().with_context(|| {
+        format!(
+            "ask relayer balances as_array failed, addr:{:?}, opts:{:?}",
+            addr, opts
+        )
+    })?;
 
     let mut balances: i64 = 0;
     for d in data {
         let balance = &d["result"];
         if balance.is_null() {
-            bail!("get_relayer_balance the balance result is null: {}", d)
+            bail!(
+                "the balance result is null: {}, addr:{:?}, opts:{:?}",
+                d,
+                addr,
+                opts
+            )
         }
 
         let balance = match balance.as_str() {
-            Some(v) => u128::from_str_radix(v.trim_start_matches("0x"), 16)
-                .with_context(|| format!("balance parse hex failed: {}", v))?,
-            None => bail!("get_relayer_balance the balance result is not a str: {}", d),
+            Some(v) => u128::from_str_radix(v.trim_start_matches("0x"), 16).with_context(|| {
+                format!(
+                    "balance parse hex failed: {}, addr:{:?}, opts:{:?}",
+                    v, addr, opts
+                )
+            })?,
+            None => bail!(
+                "the balance result is not a str: {}, addr:{:?}, opts:{:?}",
+                d,
+                addr,
+                opts
+            ),
         };
 
         // the balance came from relayer is like below:
@@ -148,9 +228,9 @@ mod tests {
     fn test_task_total_balance_of_relayers() {
         assert!(total_balance_of_relayers::<u64>(
             "https://data-seed-prebsc-1-s1.binance.org:8545",
-            &Some(ExtraOpts::BridgeAddress(
-                "0xD609931ec1c7a7F6ad59A69fede03fB067Af997c".to_string()
-            ))
+            &Some(ExtraOpts::TotalBalanceOfRelayers {
+                bridge_address: "0xD609931ec1c7a7F6ad59A69fede03fB067Af997c".to_string(),
+            }),
         )
         .is_ok())
     }

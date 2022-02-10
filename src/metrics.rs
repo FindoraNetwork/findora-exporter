@@ -113,6 +113,16 @@ where
                 "the total balance of relayers from the specific bridge",
             )
             .context("new total_balance_of_relayers failed")?,
+            TaskName::BridgedBalance => GenericGauge::new(
+                "bridged_balance",
+                "the token balance of reserving safe on source chain",
+            )
+            .context("new bridged_balance failed")?,
+            TaskName::BridgedSupply => GenericGauge::new(
+                "bridged_supply",
+                "the token supply total minted on the destination chain",
+            )
+            .context("new bridged_supply failed")?,
         };
 
         registry
