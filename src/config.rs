@@ -109,6 +109,7 @@ impl Hash for Target {
         self.host_addr.hash(state);
         self.task_name.hash(state);
         self.frequency_ms.hash(state);
+        self.extra_opts.hash(state);
     }
 }
 
