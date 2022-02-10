@@ -45,7 +45,7 @@ the deb package will try to install
 1. the findora-exporter as a systemd service
 2. put the binary under /usr/local/bin/ folder
 3. expecting a config file at /etc/prometheus/findora_exporter_config.json
-4. expecting a user named ubuntu
+4. expecting an user named ubuntu
 """
 
 [package.metadata.deb.systemd-units]
