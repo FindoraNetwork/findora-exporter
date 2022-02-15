@@ -1,6 +1,7 @@
-name: Main Branch CI
+name: Check
 
 on:
+  workflow_call:
   push:
     branches: [main]
   pull_request:

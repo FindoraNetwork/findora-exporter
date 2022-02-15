@@ -5,51 +5,16 @@ on:
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
 jobs:
-  check:
-    name: Checking Linter and Test cases
-    runs-on: ubuntu-latest 
-    steps:
-    - name: Checkout repo
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 1
-
-    - name: Install minimal stable with clippy and rustfmt
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        components: rustfmt, clippy 
-
-    - name: Using cache to speed up
-      uses: actions/cache@v2
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-stable-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Check Formatting
-      run: cargo fmt --all -- --check 
-
-    - name: Check Clippy Lints 
-      run: cargo clippy --all-targets --all-features -- -D warnings 
-
-    - name: Run Tests 
-      run: cargo test --all --all-features --no-fail-fast  
+  call-workflow-check:
+    uses: ./.github/workflows/check.yml
 
   publish:
     name: Publish releases
-    needs: check
+    needs: call-workflow-check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 1
 
       - name: Determine release info
         id: info
@@ -141,13 +106,11 @@ jobs:
   
   publish-image:
     name: Publish image releases
-    needs: check
+    needs: call-workflow-check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 1
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
