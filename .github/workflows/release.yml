@@ -11,6 +11,7 @@ jobs:
   publish:
     name: Publish releases
     needs: call-workflow-check
+    concurrency: ci-releasing-binaries
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -107,6 +108,7 @@ jobs:
   publish-image:
     name: Publish image releases
     needs: call-workflow-check
+    concurrency: ci-releasing-images
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
