@@ -93,10 +93,10 @@ mod tests {
     #[test]
     fn test_bridged_balance() {
         assert!(bridged_balance::<u64>(
-            "https://prod-testnet.prod.findora.org:8545",
+            "https://data-seed-prebsc-1-s1.binance.org:8545",
             &Some(ExtraOpts::BridgedBalance {
                 erc20handler_address: "0xe2b65e624bBb5513fF805d225258D7A92b0f62C4".to_string(),
-                token_address: "0x6ce8da28e2f864420840cf74474eff5fd80e65b8".to_string(),
+                token_address: "0xae13d989dac2f0debff460ac112a837c89baa7cd".to_string(),
             }),
         )
         .is_ok())
