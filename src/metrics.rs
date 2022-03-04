@@ -41,8 +41,7 @@ where
     pub(crate) fn gather(&self) -> Vec<MetricFamily> {
         self.metrics
             .values()
-            .map(|metric| metric.gather())
-            .flatten()
+            .flat_map(|metric| metric.gather())
             .collect()
     }
 
