@@ -24,7 +24,7 @@ jobs:
         components: rustfmt, clippy 
 
     - name: Using cache to speed up
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: |
           ~/.cargo/bin/
@@ -61,7 +61,7 @@ jobs:
         tool: cargo-llvm-cov
 
     - name: Using cache to speed up
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: |
           ~/.cargo/bin/
