@@ -1,16 +1,17 @@
 use crate::config::ExtraOpts;
+use crate::utils::{diff_of_decimal_18, toi64_div_10pow12};
 
 use anyhow::{bail, Context, Result};
-
 use prometheus::core::Number;
 use serde_json::Value;
 
 pub(crate) fn bridged_balance<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -> Result<N> {
-    let (handler_addr, token_addr) = match opts {
+    let (handler_addr, token_addr, decimal) = match opts {
         Some(ExtraOpts::BridgedBalance {
             erc20handler_address,
             token_address,
-        }) => (erc20handler_address, token_address),
+            decimal,
+        }) => (erc20handler_address, token_address, decimal),
         _ => {
             bail!(
                 "expecting extra_opts: erc20handler_address and token_address, addr:{:?}",
@@ -76,14 +77,10 @@ pub(crate) fn bridged_balance<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -
         ),
     };
 
-    // the balance number is like below:
-    // 9989580120000000000
-    // and it is using the 18th number as it's decimal point
-    // 9989580120000000000 = 9.989580120000000000
-    // and the max i64 is 9989580120000000000 a 19th number
-    // so for filling this huge number into i64 we div by 10.
-    // the real balances needs to div by 8 again
-    Ok(N::from_i64((balance.wrapping_div(10u128.pow(10))) as i64))
+    Ok(N::from_i64(toi64_div_10pow12(
+        balance,
+        diff_of_decimal_18(decimal),
+    )))
 }
 
 #[cfg(test)]
@@ -97,6 +94,7 @@ mod tests {
             &Some(ExtraOpts::BridgedBalance {
                 erc20handler_address: "0xe2b65e624bBb5513fF805d225258D7A92b0f62C4".to_string(),
                 token_address: "0xae13d989dac2f0debff460ac112a837c89baa7cd".to_string(),
+                decimal: 18,
             }),
         )
         .is_ok())

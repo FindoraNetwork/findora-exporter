@@ -1,13 +1,16 @@
 use crate::config::ExtraOpts;
+use crate::utils::{diff_of_decimal_18, toi64_div_10pow12};
 
 use anyhow::{bail, Context, Result};
-
 use prometheus::core::Number;
 use serde_json::Value;
 
 pub(crate) fn bridged_supply<N: Number>(addr: &str, opts: &Option<ExtraOpts>) -> Result<N> {
-    let token_addr = match opts {
-        Some(ExtraOpts::BridgedSupply { token_address }) => token_address,
+    let (token_addr, decimal) = match opts {
+        Some(ExtraOpts::BridgedSupply {
+            token_address,
+            decimal,
+        }) => (token_address, decimal),
         _ => {
             bail!("expecting extra_opts: token_address, addr:{:?}", addr)
         }
@@ -70,14 +73,10 @@ pub(crate) fn bridged_supply<N: Number>(addr: &str, opts: &Option<ExtraOpts>) ->
         ),
     };
 
-    // the balance number is like below:
-    // 9989580120000000000
-    // and it is using the 18th number as it's decimal point
-    // 9989580120000000000 = 9.989580120000000000
-    // and the max i64 is 9989580120000000000 a 19th number
-    // so for filling this huge number into i64 we div by 10.
-    // the real balances needs to div by 8 again
-    Ok(N::from_i64((balance.wrapping_div(10u128.pow(10))) as i64))
+    Ok(N::from_i64(toi64_div_10pow12(
+        balance,
+        diff_of_decimal_18(decimal),
+    )))
 }
 
 #[cfg(test)]
@@ -90,6 +89,7 @@ mod tests {
             "https://data-seed-prebsc-1-s1.binance.org:8545",
             &Some(ExtraOpts::BridgedSupply {
                 token_address: "0xbbb9d97e925922EDFcBc9B7dE0E8e1092383D096".to_string(),
+                decimal: 18,
             }),
         )
         .is_ok())

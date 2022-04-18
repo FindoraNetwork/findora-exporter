@@ -1,7 +1,7 @@
 use crate::config::ExtraOpts;
+use crate::utils::{diff_of_decimal_18, toi64_div_10pow12};
 
 use anyhow::{bail, Context, Result};
-
 use prometheus::core::Number;
 use serde_json::Value;
 
@@ -9,8 +9,11 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
     addr: &str,
     opts: &Option<ExtraOpts>,
 ) -> Result<N> {
-    let bridge_addr = match opts {
-        Some(ExtraOpts::TotalBalanceOfRelayers { bridge_address }) => bridge_address,
+    let (bridge_addr, decimal) = match opts {
+        Some(ExtraOpts::TotalBalanceOfRelayers {
+            bridge_address,
+            decimal,
+        }) => (bridge_address, decimal),
         _ => bail!("expecting extra_opts: bridge_address, addr:{:?}", addr),
     };
 
@@ -207,13 +210,7 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
             ),
         };
 
-        // the balance came from relayer is like below:
-        // 9989580120000000000
-        // and it is using the 18th number as it's decimal point
-        // 9989580120000000000 = 9.989580120000000000
-        // and the max i64 is 9989580120000000000 a 19th number
-        // so for filling this huge number into i64 we div by 10.
-        balances += (balance.wrapping_div(10u128.pow(10))) as i64;
+        balances += toi64_div_10pow12(balance, diff_of_decimal_18(decimal));
     }
 
     // the real balances needs to div by 8 again
@@ -230,6 +227,7 @@ mod tests {
             "https://data-seed-prebsc-1-s1.binance.org:8545",
             &Some(ExtraOpts::TotalBalanceOfRelayers {
                 bridge_address: "0xD609931ec1c7a7F6ad59A69fede03fB067Af997c".to_string(),
+                decimal: 18,
             }),
         )
         .is_ok())
