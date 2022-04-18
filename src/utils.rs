@@ -70,6 +70,6 @@ mod tests {
     #[test]
     fn test_toi64_div_10pow12() {
         assert_eq!(9989580, toi64_div_10pow12(9989580120000000000, 0));
-        assert_eq!(538800000, toi64_div_10pow12(538800000, 9));
+        assert_eq!(538800000, toi64_div_10pow12(538800000, 12));
     }
 }
