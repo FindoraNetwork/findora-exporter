@@ -16,9 +16,9 @@ This exporter has below custom metrics right now!
 | ConsensusPower | percentage of the current consensus network voting power |
 | NetworkFunctional | subtraction of seconds of the latest block time with the current time |
 | TotalCountOfValidators | the total number of validators from the consensus network |
-| TotalBalanceOfRelayers | the total balance value of relayers from the specific bridge ( this metric displays with 8 digits as the fractional part so need to divide the metric value by 10 to the power of 8 ) |
-| BridgedBalance | the token balance of reserving safe on source chain ( this metric displays with 8 digits as the fractional part so need to divide the metric value by 10 to the power of 8 ) |
-| BridgedSupply | the token supply total minted on the destination chain ( this metric displays with 8 digits as the fractional part so need to divide the metric value by 10 to the power of 8 ) |
+| TotalBalanceOfRelayers | the total balance value of relayers from the specific bridge ( this metric displays with 6 digits as the fractional part so need to divide the metric value by 10 to the power of 6 ) |
+| BridgedBalance | the token balance of reserving safe on source chain ( this metric displays with 6 digits as the fractional part so need to divide the metric value by 10 to the power of 6 ) |
+| BridgedSupply | the token supply total minted on the destination chain ( this metric displays with 6 digits as the fractional part so need to divide the metric value by 10 to the power of 6 ) |
 
 ## Installation
 

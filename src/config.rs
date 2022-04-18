@@ -84,13 +84,16 @@ impl Default for TaskName {
 pub(crate) enum ExtraOpts {
     TotalBalanceOfRelayers {
         bridge_address: String,
+        decimal: usize,
     },
     BridgedBalance {
         erc20handler_address: String,
         token_address: String,
+        decimal: usize,
     },
     BridgedSupply {
         token_address: String,
+        decimal: usize,
     },
 }
 
