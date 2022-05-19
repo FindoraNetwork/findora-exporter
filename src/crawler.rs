@@ -27,8 +27,8 @@ pub(crate) struct Crawler {
 impl Crawler {
     /// Returns a Crawler instance and
     /// Spawned
-    /// 1. a thread to push tasks in the mpsc queue for workers to consume.
-    /// 2. N threads of worker to consume tasks.
+    /// 1. a thread to push tasks into a mpsc queue.
+    /// 2. N threads of worker to consume tasks from the mpsc queue.
     pub(crate) fn new<T>(
         cfg: &crate::config::Crawler,
         metrics: Arc<crate::metrics::Metrics<T>>,
@@ -96,14 +96,19 @@ impl Crawler {
         }
 
         let freq = Duration::from_millis(cfg.frequency_ms);
-        let pusher_done = done.clone();
+        let tx_done = done.clone();
         workers.push(Some(
             thread::Builder::new()
                 .name("task pusher".to_string())
                 .spawn(move || {
-                    while !pusher_done.load(Ordering::SeqCst) {
+                    while !tx_done.load(Ordering::SeqCst) {
                         for task in tasks.clone() {
-                            tx.send(task).unwrap();
+                            if let Err(e) = tx.send(task.clone()) {
+                                error!(
+                                    "task pusher sending task:{}, addr:{} failed:{}",
+                                    task.name, task.addr, e
+                                );
+                            }
                         }
                         thread::sleep(freq);
                     }
@@ -113,11 +118,24 @@ impl Crawler {
 
         for id in 0..cfg.worker_n {
             let rx = rx.clone();
+            let name = format!("worker{}", id);
+            let rx_done = done.clone();
             workers.push(Some(
                 thread::Builder::new()
-                    .name(format!("worker{}", id))
+                    .name(name.clone())
                     .spawn(move || {
-                        rx.lock().unwrap().recv().unwrap().execute();
+                        while !rx_done.load(Ordering::SeqCst) {
+                            match rx.lock() {
+                                Ok(r) => match r.recv() {
+                                    Ok(task) => {
+                                        drop(r);
+                                        task.execute()
+                                    }
+                                    Err(e) => error!("{} recv failed:{}", name, e),
+                                },
+                                Err(e) => error!("{} lock rx failed:{}", name, e),
+                            }
+                        }
                     })
                     .context("spawning worker thread failed")?,
             ));
@@ -177,3 +195,36 @@ where
         }
     }
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::{
+//         config::{Crawler as CrawlerConfig, Target as TargetConfig, TaskName},
+//         metrics::Metrics,
+//     };
+//     use prometheus::core::AtomicU64;
+//     use std::{thread::sleep, time::Duration};
+//
+//     #[test]
+//     fn test_crawler_should_worked() {
+//         let cfg = CrawlerConfig {
+//             targets: vec![TargetConfig {
+//                 host_addr: "https://prod-testnet.prod.findora.org:8545".to_string(),
+//                 task_name: TaskName::ConsensusPower,
+//                 registry: None,
+//                 extra_opts: None,
+//             }],
+//             worker_n: 1,
+//             frequency_ms: 300,
+//         };
+//         let m = Arc::new(Metrics::<AtomicU64>::new(&cfg).unwrap());
+//         let mut c = Crawler::new(&cfg, m.clone()).unwrap();
+//         sleep(Duration::from_secs(6));
+//         c.close();
+//
+//         let got = m.gather();
+//         assert_eq!(1, got.len());
+//         println!("{:?}", got[0].get_metric()[0].get_gauge());
+//     }
+// }
