@@ -47,15 +47,18 @@ impl Default for Config {
 #[serde(default)]
 pub(crate) struct Crawler {
     pub(crate) targets: Vec<Target>,
+    pub(crate) worker_n: usize,
+    pub(crate) frequency_ms: u64,
 }
 
 impl Default for Crawler {
     fn default() -> Self {
         Crawler {
+            worker_n: 3,
+            frequency_ms: 15000,
             targets: vec![Target {
                 host_addr: "http://127.0.0.1:26657".to_string(),
                 task_name: TaskName::NetworkFunctional,
-                frequency_ms: 15000,
                 registry: None,
                 extra_opts: None,
             }],
@@ -102,7 +105,6 @@ pub(crate) enum ExtraOpts {
 pub(crate) struct Target {
     pub(crate) host_addr: String,
     pub(crate) task_name: TaskName,
-    pub(crate) frequency_ms: u64,
     pub(crate) registry: Option<Registry>,
     pub(crate) extra_opts: Option<ExtraOpts>,
 }
@@ -111,16 +113,13 @@ impl Hash for Target {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.host_addr.hash(state);
         self.task_name.hash(state);
-        self.frequency_ms.hash(state);
         self.extra_opts.hash(state);
     }
 }
 
 impl PartialEq for Target {
     fn eq(&self, other: &Self) -> bool {
-        self.host_addr == other.host_addr
-            && self.task_name == other.task_name
-            && self.frequency_ms == other.frequency_ms
+        self.host_addr == other.host_addr && self.task_name == other.task_name
     }
 }
 
@@ -175,7 +174,6 @@ mod tests {
         want.crawler.targets.push(Target {
             host_addr: "https://somewhere.com/metrics:443".to_string(),
             task_name: TaskName::NetworkFunctional,
-            frequency_ms: 1000,
             extra_opts: None,
             registry: Some(Registry {
                 prefix: "findora_exporter".to_string(),

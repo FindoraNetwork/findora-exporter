@@ -32,12 +32,9 @@ fn run(cfg_path: &str) {
     let metrics =
         Arc::new(metrics::Metrics::<AtomicU64>::new(&cfg.crawler).expect("metrics new failed"));
     let server = server::Server::new(&cfg.server, metrics.clone());
-    let crawler = crawler::Crawler::new(&cfg.crawler, metrics);
+    let mut crawler = crawler::Crawler::new(&cfg.crawler, metrics).expect("crawler new failed");
 
-    let threads = vec![
-        server.run().expect("server thread run failed"),
-        crawler.run().expect("crawler thread run failed"),
-    ];
+    let threads = vec![server.run().expect("server thread run failed")];
 
     ctrlc::set_handler(move || {
         server.close();
@@ -153,7 +150,6 @@ mod tests {
         cfg.crawler.targets = vec![config::Target {
             host_addr: "https://prod-mainnet.prod.findora.org:26657".to_string(),
             task_name: config::TaskName::TotalCountOfValidators,
-            frequency_ms: 300,
             registry: None,
             extra_opts: None,
         }];
