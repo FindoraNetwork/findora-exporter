@@ -196,35 +196,35 @@ where
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::{
-//         config::{Crawler as CrawlerConfig, Target as TargetConfig, TaskName},
-//         metrics::Metrics,
-//     };
-//     use prometheus::core::AtomicU64;
-//     use std::{thread::sleep, time::Duration};
-//
-//     #[test]
-//     fn test_crawler_should_worked() {
-//         let cfg = CrawlerConfig {
-//             targets: vec![TargetConfig {
-//                 host_addr: "https://prod-testnet.prod.findora.org:8545".to_string(),
-//                 task_name: TaskName::ConsensusPower,
-//                 registry: None,
-//                 extra_opts: None,
-//             }],
-//             worker_n: 1,
-//             frequency_ms: 300,
-//         };
-//         let m = Arc::new(Metrics::<AtomicU64>::new(&cfg).unwrap());
-//         let mut c = Crawler::new(&cfg, m.clone()).unwrap();
-//         sleep(Duration::from_secs(6));
-//         c.close();
-//
-//         let got = m.gather();
-//         assert_eq!(1, got.len());
-//         println!("{:?}", got[0].get_metric()[0].get_gauge());
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        config::{Crawler as CrawlerConfig, Target as TargetConfig, TaskName},
+        metrics::Metrics,
+    };
+    use prometheus::core::AtomicU64;
+    use std::{thread::sleep, time::Duration};
+
+    #[test]
+    fn test_crawler_should_worked() {
+        let cfg = CrawlerConfig {
+            targets: vec![TargetConfig {
+                host_addr: "https://prod-mainnet.prod.findora.org:26657".to_string(),
+                task_name: TaskName::TotalCountOfValidators,
+                registry: None,
+                extra_opts: None,
+            }],
+            worker_n: 1,
+            frequency_ms: 300,
+        };
+        let m = Arc::new(Metrics::<AtomicU64>::new(&cfg).unwrap());
+        let mut c = Crawler::new(&cfg, m.clone()).unwrap();
+        sleep(Duration::from_secs(1));
+        c.close();
+
+        let got = m.gather();
+        assert_eq!(1, got.len());
+        assert_ne!(0.0, got[0].get_metric()[0].get_gauge().get_value());
+    }
+}
