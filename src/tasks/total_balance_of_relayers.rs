@@ -134,7 +134,18 @@ pub(crate) fn total_balance_of_relayers<N: Number>(
         }
 
         let relayer = match relayer.as_str() {
-            Some(v) => format!("0x{}", v.trim_start_matches("0x").trim_start_matches('0')),
+            Some(v) => {
+                let mut addr = v
+                    .trim_start_matches("0x")
+                    .trim_start_matches('0')
+                    .to_string();
+                if addr.len() < 40 {
+                    for _ in 0..40 - addr.len() {
+                        addr = "0".to_string() + &addr;
+                    }
+                }
+                format!("0x{}", addr)
+            }
             None => bail!(
                 "the relayer result is not a str: {}, addr:{:?}, opts:{:?}",
                 d,
@@ -230,6 +241,14 @@ mod tests {
                 decimal: 18,
             }),
         )
-        .is_ok())
+        .is_ok());
+        assert!(total_balance_of_relayers::<u64>(
+            "https://prod-forge.prod.findora.org:8545/",
+            &Some(ExtraOpts::TotalBalanceOfRelayers {
+                bridge_address: "0xe58C2e75147c462F63cB310462fFC412f5875852".to_string(),
+                decimal: 18,
+            }),
+        )
+        .is_ok());
     }
 }
