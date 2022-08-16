@@ -122,6 +122,11 @@ where
                 "the token supply total minted on the destination chain",
             )
             .context("new bridged_supply failed")?,
+            TaskName::NativeBalance => GenericGauge::new(
+                "native_balance",
+                "the native balance of reserving safe on source chain",
+            )
+            .context("new native_balance failed")?,
         };
 
         registry

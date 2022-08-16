@@ -10,3 +10,5 @@ mod bridged_balance;
 pub(crate) use bridged_balance::bridged_balance;
 mod bridged_supply;
 pub(crate) use bridged_supply::bridged_supply;
+mod native_balance;
+pub(crate) use native_balance::native_balance;

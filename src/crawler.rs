@@ -90,6 +90,13 @@ impl Crawler {
                     target.extra_opts.clone(),
                     crate::tasks::bridged_supply,
                 ),
+                TaskName::NativeBalance => Task::new(
+                    "native_balance".to_string(),
+                    target.host_addr.clone(),
+                    metric,
+                    target.extra_opts.clone(),
+                    crate::tasks::native_balance,
+                ),
             };
 
             tasks.push(Arc::new(task));

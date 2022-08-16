@@ -74,6 +74,7 @@ pub(crate) enum TaskName {
     TotalBalanceOfRelayers,
     BridgedBalance,
     BridgedSupply,
+    NativeBalance,
 }
 
 impl Default for TaskName {
@@ -96,6 +97,10 @@ pub(crate) enum ExtraOpts {
     },
     BridgedSupply {
         token_address: String,
+        decimal: usize,
+    },
+    NativeBalance {
+        native_address: String,
         decimal: usize,
     },
 }
