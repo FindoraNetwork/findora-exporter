@@ -242,13 +242,5 @@ mod tests {
             }),
         )
         .is_ok());
-        assert!(total_balance_of_relayers::<u64>(
-            "https://prod-forge.prod.findora.org:8545/",
-            &Some(ExtraOpts::TotalBalanceOfRelayers {
-                bridge_address: "0xe58C2e75147c462F63cB310462fFC412f5875852".to_string(),
-                decimal: 18,
-            }),
-        )
-        .is_ok());
     }
 }
