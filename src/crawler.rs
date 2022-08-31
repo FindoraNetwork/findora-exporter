@@ -99,7 +99,6 @@ impl Crawler {
                 ),
                 TaskName::GetPrice => Task::new(
                     "get_price".to_string(),
-                    // in this case the host_addr is the currency_pair
                     target.host_addr.clone(),
                     metric,
                     target.extra_opts.clone(),

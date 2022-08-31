@@ -104,6 +104,10 @@ pub(crate) enum ExtraOpts {
         native_address: String,
         decimal: usize,
     },
+    GetPrice {
+        currency_pair: String,
+        currency_name: String,
+    },
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
