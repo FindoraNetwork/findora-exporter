@@ -129,7 +129,7 @@ where
             .context("new native_balance failed")?,
             TaskName::GetPrice => GenericGauge::new(
                 "get_price",
-                "the close price of the related currency pair of USDT from gate.io",
+                "the close price of the related currency pair from gate.io",
             )
             .context("new get_price failed")?,
         };

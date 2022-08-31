@@ -20,7 +20,7 @@ This exporter has below custom metrics right now!
 | BridgedBalance | the specific token balance of reserving safe on source chain ( this metric displays with 6 digits as the fractional part so need to divide the metric value by 10 to the power of 6 ) |
 | BridgedSupply | the token supply total minted on the destination chain ( this metric displays with 6 digits as the fractional part so need to divide the metric value by 10 to the power of 6 ) |
 | NavtiveBalance | the native balance of reserving safe on source chain ( this metric displays with 6 digits as the fractional part so need to divide the metric value by 10 to the power of 6 ) |
-| GetPrice | the close price of the related currency pair of USDT from gate.io ( this metric displays with 6 digits as the fractional part so need to divide the metric value by 10 to the power of 6 ) |
+| GetPrice | the close price of the related currency pair from gate.io ( this metric displays with 6 digits as the fractional part so need to divide the metric value by 10 to the power of 6 ) |
 
 ## Installation
 
