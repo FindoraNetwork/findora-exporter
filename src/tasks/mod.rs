@@ -12,3 +12,4 @@ mod bridged_supply;
 pub(crate) use bridged_supply::bridged_supply;
 mod native_balance;
 pub(crate) use native_balance::native_balance;
+mod get_price;

@@ -81,16 +81,6 @@ mod tests {
 
     #[test]
     fn test_native_balance() {
-        println!(
-            "{:?}",
-            native_balance::<u64>(
-                "https://data-seed-prebsc-1-s1.binance.org:8545",
-                &Some(ExtraOpts::NativeBalance {
-                    native_address: "0xae13d989dac2f0debff460ac112a837c89baa7cd".to_string(),
-                    decimal: 18,
-                }),
-            )
-        );
         assert!(native_balance::<u64>(
             "https://data-seed-prebsc-1-s1.binance.org:8545",
             &Some(ExtraOpts::NativeBalance {
