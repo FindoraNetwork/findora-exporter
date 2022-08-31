@@ -127,6 +127,11 @@ where
                 "the native balance of reserving safe on source chain",
             )
             .context("new native_balance failed")?,
+            TaskName::GetPrice => GenericGauge::new(
+                "get_price",
+                "the close price of the related currency pair from gate.io",
+            )
+            .context("new get_price failed")?,
         };
 
         registry
