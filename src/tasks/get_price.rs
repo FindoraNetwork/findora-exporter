@@ -1,11 +1,13 @@
 // curl -H 'Accept: application/json' -X GET https://api.gateio.ws/api/v4/spot/candlesticks\?currency_pair\=FRA_USDT\&interval\=15m\&limit\=1
 // [[unix_timestamp, trading_volume, close_price, highest_price, lowest_price, open_price]]
 // [["1645749900","2839.79160470986265","0.01815","0.01897","0.01793","0.01889"]]
+use crate::config::ExtraOpts;
+
 use anyhow::{bail, Context, Result};
 use prometheus::core::Number;
 use serde_json::Value;
 
-pub(crate) fn get_price<N: Number>(pair: &str) -> Result<N> {
+pub(crate) fn get_price<N: Number>(pair: &str, _opts: &Option<ExtraOpts>) -> Result<N> {
     // https://api.gateio.ws/api/v4/spot/candlesticks\?currency_pair\=FRA_USDT\&interval\=15m\&limit\=1
     let path = format!(
         "https://api.gateio.ws/api/v4/spot/candlesticks?interval=15m&limit=1&currency_pair={}",
@@ -74,6 +76,6 @@ mod tests {
 
     #[test]
     fn test_get_price() {
-        assert!(get_price::<u64>("FRA_USDT",).is_ok())
+        assert!(get_price::<u64>("FRA_USDT", &None).is_ok())
     }
 }

@@ -75,6 +75,7 @@ pub(crate) enum TaskName {
     BridgedBalance,
     BridgedSupply,
     NativeBalance,
+    GetPrice,
 }
 
 impl Default for TaskName {
